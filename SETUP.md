@@ -1,4 +1,4 @@
-# 🚀 EDTS — Setup Guide for Collaborators
+# 🚀 DTS — Setup Guide for Collaborators
 
 Follow these steps **in order** after cloning the repository.
 
@@ -18,7 +18,7 @@ Make sure you have these installed before starting:
 ## Step 1 — Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/edts-system.git
+git clone https://github.com/JohanBuenaventura/dts-system.git
 ```
 
 Then open the folder in VS Code:
