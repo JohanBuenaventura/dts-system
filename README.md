@@ -141,7 +141,7 @@ CREATE TABLE document_logs (
 ### 2.1 Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/edts-system.git
+git clone https://github.com/JohanBuenaventura/edts-system.git
 cd edts-system/edts-backend
 ```
 
