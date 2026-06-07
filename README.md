@@ -1,6 +1,6 @@
 # 📄 DTS — Document Tracking System
 
-A full-stack web application for tracking university documents across departments.
+A full-stack web application for tracking documents across departments.
 Built with Node.js, Express, MySQL, and React (Vite + Tailwind CSS).
 
 ---
