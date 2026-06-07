@@ -26,7 +26,7 @@ const Navbar = () => {
           <div className="flex items-center gap-2">
             <span className="text-2xl">📄</span>
             <span className="text-white font-bold text-lg tracking-wide">
-              EDTS
+              DTS
             </span>
           </div>
 

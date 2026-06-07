@@ -54,7 +54,7 @@ const RegisterPage = () => {
             <input type="text" name="full_name" value={form.full_name}
               onChange={handleChange} required
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Juan dela Cruz" />
+              placeholder="Full Name" />
           </div>
 
           <div>
@@ -62,7 +62,7 @@ const RegisterPage = () => {
             <input type="email" name="email" value={form.email}
               onChange={handleChange} required
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="you@university.edu" />
+              placeholder="Your Email Address" />
           </div>
 
           <div>
@@ -70,7 +70,7 @@ const RegisterPage = () => {
             <input type="password" name="password" value={form.password}
               onChange={handleChange} required minLength={6}
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Min. 6 characters" />
+              placeholder="Password" />
           </div>
 
           <div>

@@ -1,5 +1,5 @@
 -- ============================================================
--- EDTS — Enterprise Document Tracking System
+-- DTS —  Document Tracking System
 -- Database Schema
 -- Run this in phpMyAdmin or any MySQL client
 -- ============================================================
