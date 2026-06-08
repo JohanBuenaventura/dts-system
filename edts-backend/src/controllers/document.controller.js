@@ -2,11 +2,11 @@
 import pool from '../config/db.js';
 
 // ─── HELPER: Generate Tracking Code ──────────────────────────────────────────
-// Format: EDTS-YYYYMMDD-XXXX (e.g. EDTS-20240115-4F3A)
+// Format: DTS-YYYYMMDD-XXXX (e.g. DTS-20240115-4F3A)
 const generateTrackingCode = () => {
   const date   = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const random = Math.random().toString(36).toUpperCase().slice(2, 6);
-  return `EDTS-${date}-${random}`;
+  return `DTS-${date}-${random}`;
 };
 
 // ─── CREATE DOCUMENT ─────────────────────────────────────────────────────────
@@ -82,24 +82,24 @@ export const getAllDocuments = async (req, res) => {
     let query;
     let params;
 
-    if (req.user.role === 'Admin') {
-      query = `
-        SELECT d.*, u.full_name AS created_by_name, u.department AS created_by_dept
-        FROM documents d
-        JOIN users u ON d.created_by = u.id
-        ORDER BY d.created_at DESC
-      `;
-      params = [];
-    } else {
-      query = `
-        SELECT d.*, u.full_name AS created_by_name, u.department AS created_by_dept
-        FROM documents d
-        JOIN users u ON d.created_by = u.id
-        WHERE d.current_location_dept = ?
-        ORDER BY d.created_at DESC
-      `;
-      params = [req.user.department];
-    }
+    if (req.user.role === 'Admin' || req.user.role === 'Super Admin') {
+  query = `
+    SELECT d.*, u.full_name AS created_by_name, u.department AS created_by_dept
+    FROM documents d
+    JOIN users u ON d.created_by = u.id
+    ORDER BY d.created_at DESC
+  `;
+  params = [];
+} else {
+  query = `
+    SELECT d.*, u.full_name AS created_by_name, u.department AS created_by_dept
+    FROM documents d
+    JOIN users u ON d.created_by = u.id
+    WHERE d.current_location_dept = ?
+    ORDER BY d.created_at DESC
+  `;
+  params = [req.user.department];
+}
 
     const [rows] = await pool.execute(query, params);
 

@@ -6,11 +6,11 @@ import pool from '../config/db.js';
 const SALT_ROUNDS = 12;
 
 // ─── REGISTER ────────────────────────────────────────────────────────────────
+// Public — always creates Staff only, no role selection allowed
 export const register = async (req, res) => {
   try {
-    const { full_name, email, password, role, department } = req.body;
+    const { full_name, email, password, department } = req.body;
 
-    // ── Validate required fields
     if (!full_name || !email || !password || !department) {
       return res.status(400).json({
         success: false,
@@ -18,11 +18,6 @@ export const register = async (req, res) => {
       });
     }
 
-    // ── Validate role
-    const allowedRoles = ['Admin', 'Staff'];
-    const assignedRole = role && allowedRoles.includes(role) ? role : 'Staff';
-
-    // ── Check if email already exists (parameterized — no SQL injection)
     const [existing] = await pool.execute(
       'SELECT id FROM users WHERE email = ?',
       [email]
@@ -34,14 +29,13 @@ export const register = async (req, res) => {
       });
     }
 
-    // ── Hash password
     const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // ── Insert new user
+    // Role is ALWAYS Staff on self-registration — no exceptions
     const [result] = await pool.execute(
-      `INSERT INTO users (full_name, email, password_hash, role, department)
-       VALUES (?, ?, ?, ?, ?)`,
-      [full_name, email, password_hash, assignedRole, department]
+      `INSERT INTO users (full_name, email, password_hash, role, department, is_active)
+       VALUES (?, ?, ?, 'Staff', ?, 1)`,
+      [full_name, email, password_hash, department]
     );
 
     return res.status(201).json({
@@ -51,7 +45,7 @@ export const register = async (req, res) => {
         id:         result.insertId,
         full_name,
         email,
-        role:       assignedRole,
+        role:       'Staff',
         department,
       },
     });
@@ -67,7 +61,6 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // ── Validate fields
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -75,21 +68,28 @@ export const login = async (req, res) => {
       });
     }
 
-    // ── Find user by email
     const [rows] = await pool.execute(
       'SELECT * FROM users WHERE email = ?',
       [email]
     );
+
     if (rows.length === 0) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.',  // Deliberately vague for security
+        message: 'Invalid email or password.',
       });
     }
 
     const user = rows[0];
 
-    // ── Compare password against stored hash
+    // ── Check if account is active
+    if (!user.is_active) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been deactivated. Contact the administrator.',
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({
@@ -98,7 +98,6 @@ export const login = async (req, res) => {
       });
     }
 
-    // ── Sign JWT — never put sensitive data in payload
     const token = jwt.sign(
       {
         id:         user.id,
@@ -130,12 +129,11 @@ export const login = async (req, res) => {
   }
 };
 
-// ─── GET CURRENT USER (me) ───────────────────────────────────────────────────
+// ─── GET CURRENT USER ─────────────────────────────────────────────────────────
 export const getMe = async (req, res) => {
   try {
-    // req.user is attached by the protect middleware
     const [rows] = await pool.execute(
-      'SELECT id, full_name, email, role, department, created_at FROM users WHERE id = ?',
+      'SELECT id, full_name, email, role, department, is_active, created_at FROM users WHERE id = ?',
       [req.user.id]
     );
 

@@ -1,9 +1,7 @@
 // src/middleware/auth.middleware.js
 import jwt from 'jsonwebtoken';
 
-// ─── PROTECT ─────────────────────────────────────────────────────────────────
-// Attach this to any route that requires authentication.
-// It validates the Bearer token and injects req.user for downstream handlers.
+// ─── PROTECT ──────────────────────────────────────────────────────────────────
 export const protect = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -15,11 +13,9 @@ export const protect = (req, res, next) => {
       });
     }
 
-    const token = authHeader.split(' ')[1];
-
+    const token   = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { id, email, role, department, full_name }
-
+    req.user      = decoded;
     next();
 
   } catch (error) {
@@ -30,9 +26,7 @@ export const protect = (req, res, next) => {
   }
 };
 
-// ─── AUTHORIZE (Role Guard) ───────────────────────────────────────────────────
-// Usage: authorize('Admin') — only Admins can proceed
-// Usage: authorize('Admin', 'Staff') — both roles allowed
+// ─── AUTHORIZE ────────────────────────────────────────────────────────────────
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -43,4 +37,15 @@ export const authorize = (...roles) => {
     }
     next();
   };
+};
+
+// ─── SUPER ADMIN ONLY ─────────────────────────────────────────────────────────
+export const superAdminOnly = (req, res, next) => {
+  if (req.user.role !== 'Super Admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Super Admin only.',
+    });
+  }
+  next();
 };
