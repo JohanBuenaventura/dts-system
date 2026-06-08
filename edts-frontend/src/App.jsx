@@ -1,13 +1,23 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import LoginPage           from './pages/LoginPage';
-import RegisterPage        from './pages/RegisterPage';
-import DashboardPage       from './pages/DashboardPage';
-import DocumentsPage       from './pages/DocumentsPage';
-import CreateDocumentPage  from './pages/CreateDocumentPage';
-import DocumentDetailPage  from './pages/DocumentDetailPage';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import ProtectedRoute       from './components/ProtectedRoute';
+import LoginPage            from './pages/LoginPage';
+import RegisterPage         from './pages/RegisterPage';
+import DashboardPage        from './pages/DashboardPage';
+import DocumentsPage        from './pages/DocumentsPage';
+import CreateDocumentPage   from './pages/CreateDocumentPage';
+import DocumentDetailPage   from './pages/DocumentDetailPage';
+import AdminPage            from './pages/AdminPage';
+
+// Guard for Super Admin only routes
+const SuperAdminRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'Super Admin') return <Navigate to="/dashboard" replace />;
+  return children;
+};
 
 function App() {
   return (
@@ -30,6 +40,11 @@ function App() {
           }/>
           <Route path="/documents/:id" element={
             <ProtectedRoute><DocumentDetailPage /></ProtectedRoute>
+          }/>
+
+          {/* Super Admin Only */}
+          <Route path="/admin" element={
+            <SuperAdminRoute><AdminPage /></SuperAdminRoute>
           }/>
 
           {/* Fallback */}

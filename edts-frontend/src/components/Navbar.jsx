@@ -22,15 +22,11 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
 
-          {/* Logo */}
           <div className="flex items-center gap-2">
             <span className="text-2xl">📄</span>
-            <span className="text-white font-bold text-lg tracking-wide">
-              DTS
-            </span>
+            <span className="text-white font-bold text-lg tracking-wide">DTS</span>
           </div>
 
-          {/* Nav Links */}
           <div className="hidden md:flex items-center gap-1">
             <Link to="/dashboard"
               className={`px-3 py-2 rounded-md text-sm font-medium transition ${isActive('/dashboard')}`}>
@@ -44,13 +40,22 @@ const Navbar = () => {
               className={`px-3 py-2 rounded-md text-sm font-medium transition ${isActive('/documents/create')}`}>
               + New Document
             </Link>
+            {user?.role === 'Super Admin' && (
+              <Link to="/admin"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition ${isActive('/admin')}`}>
+                👑 User Management
+              </Link>
+            )}
           </div>
 
-          {/* User Info + Logout */}
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
               <p className="text-white text-sm font-medium">{user?.full_name}</p>
-              <p className="text-blue-300 text-xs">{user?.role} · {user?.department}</p>
+              <p className="text-blue-300 text-xs">
+                  {user?.role === 'Super Admin'
+                    ? '👑 Super Admin'
+                    : `${user?.role} · ${user?.department}`}
+                </p>
             </div>
             <button onClick={handleLogout}
               className="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1.5 rounded-md transition">
@@ -60,11 +65,14 @@ const Navbar = () => {
 
         </div>
 
-        {/* Mobile Nav */}
-        <div className="md:hidden flex gap-2 pb-3">
-          <Link to="/dashboard"   className="text-blue-100 hover:text-white text-sm px-2">Dashboard</Link>
-          <Link to="/documents"   className="text-blue-100 hover:text-white text-sm px-2">Documents</Link>
+        {/* Mobile */}
+        <div className="md:hidden flex gap-2 pb-3 flex-wrap">
+          <Link to="/dashboard"        className="text-blue-100 hover:text-white text-sm px-2">Dashboard</Link>
+          <Link to="/documents"        className="text-blue-100 hover:text-white text-sm px-2">Documents</Link>
           <Link to="/documents/create" className="text-blue-100 hover:text-white text-sm px-2">+ New</Link>
+          {user?.role === 'Super Admin' && (
+            <Link to="/admin" className="text-blue-100 hover:text-white text-sm px-2">👑 Users</Link>
+          )}
         </div>
       </div>
     </nav>

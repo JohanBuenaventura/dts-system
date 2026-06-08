@@ -11,7 +11,7 @@ const DEPARTMENTS = [
 const RegisterPage = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    full_name: '', email: '', password: '', role: 'Staff', department: '',
+    full_name: '', email: '', password: '', department: '',
   });
   const [error,   setError]   = useState('');
   const [success, setSuccess] = useState('');
@@ -42,7 +42,7 @@ const RegisterPage = () => {
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">📄</div>
           <h1 className="text-2xl font-bold text-gray-800">Create Account</h1>
-          <p className="text-gray-500 text-sm">Document Tracking System</p>
+          <p className="text-gray-500 text-sm">You will be registered as Staff</p>
         </div>
 
         {error   && <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
@@ -54,7 +54,7 @@ const RegisterPage = () => {
             <input type="text" name="full_name" value={form.full_name}
               onChange={handleChange} required
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Full Name" />
+              placeholder="Juan dela Cruz" />
           </div>
 
           <div>
@@ -62,7 +62,7 @@ const RegisterPage = () => {
             <input type="email" name="email" value={form.email}
               onChange={handleChange} required
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Your Email Address" />
+              placeholder="you@example.com" />
           </div>
 
           <div>
@@ -70,16 +70,7 @@ const RegisterPage = () => {
             <input type="password" name="password" value={form.password}
               onChange={handleChange} required minLength={6}
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Password" />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-            <select name="role" value={form.role} onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="Staff">Staff</option>
-              <option value="Admin">Admin</option>
-            </select>
+              placeholder="Min. 6 characters" />
           </div>
 
           <div>

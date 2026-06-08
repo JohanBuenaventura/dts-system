@@ -57,3 +57,55 @@ CREATE TABLE document_logs (
     CONSTRAINT fk_log_user FOREIGN KEY (performed_by_user_id)
         REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+
+-- Add super_admin role to users table
+ALTER TABLE users 
+MODIFY COLUMN role ENUM('Super Admin', 'Admin', 'Staff') NOT NULL DEFAULT 'Staff';
+
+-- Add is_active column for account management
+ALTER TABLE users
+ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER department;
+
+-- Password is: superadmin123 (bcrypt hash)
+INSERT INTO users (full_name, email, password_hash, role, department, is_active)
+VALUES (
+  'Super Administrator',
+  'superadmin@gmail.com',
+  '$2b$12$GX6S3sMqMrzgHlAVKSvFdO9tvSCCJnCqauLDiRBBbHMUbPMkZJbLi',
+  'Super Admin',
+  'Administration',
+  1
+);
+
+UPDATE users 
+SET 
+  email = 'superadmin@gmail.com',
+  password_hash = '$2b$12$8.nBqWieZuMwrom4fYN37OpB4BSEqNotr7UCQP/7Yrf7dKNV4Krxq',
+  role = 'Super Admin',
+  is_active = 1
+WHERE id = 1;
+
+UPDATE users 
+SET department = 'System Administrator'
+WHERE role = 'Super Admin';
+
+-- Departments table (managed by Super Admin)
+CREATE TABLE departments (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name       VARCHAR(100) NOT NULL UNIQUE,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB;
+
+-- Seed default departments
+INSERT INTO departments (name) VALUES
+  ('Registrar'),
+  ('Finance'),
+  ('HR'),
+  ('IT'),
+  ('Academic Affairs'),
+  ('Student Affairs'),
+  ('Research'),
+  ('Procurement'),
+  ('Administration'),
+  ('System Administrator');
