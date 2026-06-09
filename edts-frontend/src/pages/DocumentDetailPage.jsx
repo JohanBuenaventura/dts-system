@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
-
+import { exportAuditTrailPDF, exportAuditTrailCSV } from '../utils/exportUtils';
 const DEPARTMENTS = [
   'Registrar','Finance','HR','IT','Academic Affairs',
   'Student Affairs','Research','Procurement','Administration',
@@ -299,56 +299,28 @@ const DocumentDetailPage = () => {
           <div className="lg:col-span-2 space-y-6">
 
             {/* Audit Trail */}
-            <div className="bg-white rounded-xl shadow p-6">
-              <h3 className="font-semibold text-gray-800 mb-6">
-                📋 Audit Trail
-                <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                  {history.length} events
-                </span>
-              </h3>
-
-              {history.length === 0 ? (
-                <p className="text-gray-400 text-sm">No history available.</p>
-              ) : (
-                <div className="relative">
-                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-100" />
-                  <div className="space-y-6">
-                    {history.map((log, index) => (
-                      <div key={log.id} className="relative flex gap-4">
-                        <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-xs flex-shrink-0
-                          ${index === 0 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 pb-2">
-                          <p className="font-medium text-gray-800 text-sm">{log.action_taken}</p>
-                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                            {log.from_department && (
-                              <span className="text-xs text-gray-400">
-                                From: <span className="text-gray-600">{log.from_department}</span>
-                              </span>
-                            )}
-                            {log.to_department && (
-                              <span className="text-xs text-gray-400">
-                                To: <span className="text-gray-600">{log.to_department}</span>
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-xs text-gray-400">
-                              By <span className="text-gray-600 font-medium">{log.performed_by}</span>
-                            </span>
-                            <span className="text-gray-300">·</span>
-                            <span className="text-xs text-gray-400">
-                              {new Date(log.timestamp).toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <div className="flex items-center justify-between mb-6">
+  <h3 className="font-semibold text-gray-800">
+    📋 Audit Trail
+    <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+      {history.length} events
+    </span>
+  </h3>
+  {history.length > 0 && (
+    <div className="flex gap-2">
+      <button
+        onClick={() => exportAuditTrailCSV(doc, history)}
+        className="text-xs px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg transition font-medium">
+        📥 CSV
+      </button>
+      <button
+        onClick={() => exportAuditTrailPDF(doc, history)}
+        className="text-xs px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition font-medium">
+        📄 PDF
+      </button>
+    </div>
+  )}
+</div>
 
             {/* Attachments */}
             <div className="bg-white rounded-xl shadow p-6">

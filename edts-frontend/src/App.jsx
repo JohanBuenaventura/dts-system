@@ -1,21 +1,31 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import ProtectedRoute       from './components/ProtectedRoute';
-import LoginPage            from './pages/LoginPage';
-import RegisterPage         from './pages/RegisterPage';
-import DashboardPage        from './pages/DashboardPage';
-import DocumentsPage        from './pages/DocumentsPage';
-import CreateDocumentPage   from './pages/CreateDocumentPage';
-import DocumentDetailPage   from './pages/DocumentDetailPage';
-import AdminPage            from './pages/AdminPage';
-
-// Guard for Super Admin only routes
+import ProtectedRoute      from './components/ProtectedRoute';
+import LoginPage           from './pages/LoginPage';
+import RegisterPage        from './pages/RegisterPage';
+import DashboardPage       from './pages/DashboardPage';
+import DocumentsPage       from './pages/DocumentsPage';
+import CreateDocumentPage  from './pages/CreateDocumentPage';
+import DocumentDetailPage  from './pages/DocumentDetailPage';
+import AdminPage           from './pages/AdminPage';
+import AnalyticsPage       from './pages/AnalyticsPage';
+import MyDepartmentPage from './pages/MyDepartmentPage';
+// Super Admin only
 const SuperAdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user)                       return <Navigate to="/login"     replace />;
   if (user.role !== 'Super Admin') return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
+// Admin and Super Admin only
+const AdminRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user)                                                          return <Navigate to="/login"     replace />;
+  if (user.role !== 'Admin' && user.role !== 'Super Admin')          return <Navigate to="/dashboard" replace />;
   return children;
 };
 
@@ -28,7 +38,7 @@ function App() {
           <Route path="/login"    element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* Protected */}
+          {/* All authenticated users */}
           <Route path="/dashboard" element={
             <ProtectedRoute><DashboardPage /></ProtectedRoute>
           }/>
@@ -42,13 +52,22 @@ function App() {
             <ProtectedRoute><DocumentDetailPage /></ProtectedRoute>
           }/>
 
-          {/* Super Admin Only */}
+          {/* Admin + Super Admin only */}
+          <Route path="/analytics" element={
+            <AdminRoute><AnalyticsPage /></AdminRoute>
+          }/>
+
+          {/* Super Admin only */}
           <Route path="/admin" element={
             <SuperAdminRoute><AdminPage /></SuperAdminRoute>
+          }/>
+          <Route path="/my-department" element={
+            <AdminRoute><MyDepartmentPage /></AdminRoute>
           }/>
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
         </Routes>
       </BrowserRouter>
     </AuthProvider>
