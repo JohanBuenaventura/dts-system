@@ -7,7 +7,7 @@ import documentRoutes   from './routes/document.routes.js';
 import routingRoutes    from './routes/routing.routes.js';
 import adminRoutes      from './routes/admin.routes.js';
 import attachmentRoutes from './routes/attachment.routes.js';
-
+import deptRoutes       from './routes/dept.routes.js';
 dotenv.config();
 
 const app  = express();
@@ -34,7 +34,7 @@ app.use('/api/documents',  documentRoutes);
 app.use('/api/routing',    routingRoutes);
 app.use('/api/admin',      adminRoutes);
 app.use('/api/documents',  attachmentRoutes);
-
+app.use('/api/dept',       deptRoutes);
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use((err, _req, res, _next) => {
   // Handle multer errors specifically

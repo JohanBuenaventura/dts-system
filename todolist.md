@@ -8,9 +8,6 @@ WhatDetailsProject initReact + Vite + Tailwind CSS v3axios.jsBase URL, auto JWT 
 Documentation & GitHub (Done)
 FilePurposeREADME.mdFull project overview, API docs, roles, tech stackSETUP.mdStep by step clone and run guide for collaboratorsedts_db.sqlReady to run MySQL schema.env.exampleSafe template for environment variables.gitignoreExcludes node_modules, .env, dist
 
-⚠️ Currently Unresolved
-IssueStatusUnable to get absolute uri error on Login/Register pagesPossibly caused by moving into edts-system folder — partially investigated, not fully confirmed fixed
-
 ❌ Not Yet Built (Possible Enhancements)
 These were not part of the original scope but could be added:
 FeatureDescriptionAdmin user management pageView/manage all registered usersForgot passwordReset via email tokenEmail notificationsNotify department when document is forwarded to themDocument file attachmentUpload actual PDF/Word files per documentSearch by date rangeFilter documents by creation dateExport to PDF/CSVExport document list or audit trailDepartment-level dashboardStats per department for AdminPaginationFor large document listsDark modeUI theme toggle

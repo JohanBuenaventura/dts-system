@@ -76,37 +76,70 @@ export const createDocument = async (req, res) => {
 };
 
 // ─── GET ALL DOCUMENTS ────────────────────────────────────────────────────────
+// ─── GET ALL DOCUMENTS (with pagination) ──────────────────────────────────────
 export const getAllDocuments = async (req, res) => {
   try {
-    // Admins see all documents; Staff see only documents in their department
-    let query;
-    let params;
+    const page     = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit    = Math.min(50, parseInt(req.query.limit) || 10);
+    const offset   = (page - 1) * limit;
+    const search   = req.query.search   || '';
+    const status   = req.query.status   || '';
+    const type     = req.query.type     || '';
 
-    if (req.user.role === 'Admin' || req.user.role === 'Super Admin') {
-  query = `
-    SELECT d.*, u.full_name AS created_by_name, u.department AS created_by_dept
-    FROM documents d
-    JOIN users u ON d.created_by = u.id
-    ORDER BY d.created_at DESC
-  `;
-  params = [];
-} else {
-  query = `
-    SELECT d.*, u.full_name AS created_by_name, u.department AS created_by_dept
-    FROM documents d
-    JOIN users u ON d.created_by = u.id
-    WHERE d.current_location_dept = ?
-    ORDER BY d.created_at DESC
-  `;
-  params = [req.user.department];
-}
+    // ── Build WHERE clause dynamically
+    const conditions = [];
+    const params     = [];
 
-    const [rows] = await pool.execute(query, params);
+    if (req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
+      conditions.push('d.current_location_dept = ?');
+      params.push(req.user.department);
+    }
+
+    if (search) {
+      conditions.push('(d.title LIKE ? OR d.tracking_code LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (status) {
+      conditions.push('d.status = ?');
+      params.push(status);
+    }
+
+    if (type) {
+      conditions.push('d.type = ?');
+      params.push(type);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // ── Count total matching records
+    const [[{ total }]] = await pool.execute(
+      `SELECT COUNT(*) as total FROM documents d ${where}`,
+      params
+    );
+
+    // ── Fetch paginated results
+    const [rows] = await pool.execute(
+      `SELECT d.*, u.full_name AS created_by_name, u.department AS created_by_dept
+       FROM documents d
+       JOIN users u ON d.created_by = u.id
+       ${where}
+       ORDER BY d.created_at DESC
+       LIMIT ${limit} OFFSET ${offset}`,
+      params
+    );
 
     return res.status(200).json({
       success: true,
-      count:   rows.length,
       data:    rows,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNext:    page < Math.ceil(total / limit),
+        hasPrev:    page > 1,
+      },
     });
 
   } catch (error) {
