@@ -74,6 +74,7 @@ const AdminPage = () => {
   const [users,       setUsers]       = useState([]);
   const [departments, setDepartments] = useState([]);
   const [logs,        setLogs]        = useState([]);
+  const [pending,     setPending]     = useState([]); // Added pending approvals state
   const [logPagination, setLogPagination] = useState(null);
   const [logPage,     setLogPage]     = useState(1);
   const [logStatus,   setLogStatus]   = useState('');
@@ -93,15 +94,21 @@ const AdminPage = () => {
 
   const fetchUsers       = async () => { const r = await api.get('/admin/users');       setUsers(r.data.data); };
   const fetchDepartments = async () => { const r = await api.get('/admin/departments'); setDepartments(r.data.data); };
-  const fetchLogs        = async (page = 1) => {
-    const r = await api.get('/admin/logs', { params: { page, limit: 20, status: logStatus, action: logAction } });
-    setLogs(r.data.data);
-    setLogPagination(r.data.pagination);
+  
+  // Added fetch pending users function
+  const fetchPending = async () => {
+    try {
+      const res = await api.get('/admin/pending');
+      setPending(res.data.data);
+    } catch (err) { console.error(err); }
   };
 
   const fetchAll = async () => {
     setLoading(true);
-    try { await Promise.all([fetchUsers(), fetchDepartments()]); }
+    try { 
+      // Fetch users, departments, and pending registration requests concurrently
+      await Promise.all([fetchUsers(), fetchDepartments(), fetchPending()]); 
+    }
     catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -121,6 +128,18 @@ const AdminPage = () => {
     setUserForm({ full_name: '', email: '', password: '', role: 'Staff', department: '' });
     setDeptForm({ name: '' });
     setResetPass({ password: '', confirm: '' });
+  };
+
+  // Added decision handler for admin actions
+  const handleDecision = async (id, decision) => {
+    try {
+      await api.patch(`/admin/pending/${id}`, { decision });
+      showMsg('success', `User ${decision}d.`);
+      fetchPending();
+      fetchUsers();
+    } catch (err) {
+      showMsg('error', err.response?.data?.message || 'Failed.');
+    }
   };
 
   // ── User handlers
@@ -200,6 +219,12 @@ const AdminPage = () => {
     } catch (err) { showMsg('error', err.response?.data?.message || 'Failed.'); }
   };
 
+  const fetchLogs = async (page = 1) => {
+    const r = await api.get('/admin/logs', { params: { page, limit: 20, status: logStatus, action: logAction } });
+    setLogs(r.data.data);
+    setLogPagination(r.data.pagination);
+  };
+
   const handleClearLogs = async () => {
     if (!window.confirm('Clear all logs older than 30 days?')) return;
     try {
@@ -254,7 +279,36 @@ const AdminPage = () => {
 
         {/* ── USERS TAB ── */}
         {activeTab === 'Users' && (
-          <div className="animate-in fade-in duration-300">
+          <div>
+            {/* Pending Registration Requests Block */}
+            {pending.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-6 shadow-sm">
+                <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+                  ⏳ Pending Approvals ({pending.length})
+                </h3>
+                <div className="space-y-2">
+                  {pending.map(p => (
+                    <div key={p.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-yellow-100 shadow-sm">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{p.full_name}</p>
+                        <p className="text-xs text-gray-400">{p.email} · <span className="text-indigo-600 font-medium">{p.department}</span></p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleDecision(p.id, 'approve')}
+                          className="text-xs px-3 py-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg font-medium transition">
+                          Approve
+                        </button>
+                        <button onClick={() => handleDecision(p.id, 'reject')}
+                          className="text-xs px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-medium transition">
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end mb-4">
               <button onClick={() => setModal('createUser')}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2 shadow-lg shadow-indigo-900/20 border border-indigo-500 active:scale-[0.98]">

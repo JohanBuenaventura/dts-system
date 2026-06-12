@@ -16,19 +16,25 @@ const LoginPage = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const res = await api.post('/auth/login', form);
-      login(res.data.user, res.data.token);
-      navigate('/dashboard');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Invalid email or password.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  e.preventDefault();
+  e.stopPropagation();
+
+  setError('');
+  setLoading(true);
+
+  try {
+    const res = await api.post('/auth/login', form);
+    login(res.data.user, res.data.token);
+    navigate('/dashboard');
+  } catch (err) {
+    const msg = err.response?.data?.message || 'Invalid email or password.';
+    setError(msg);
+    // Clear only the password — keep email so user doesn't retype it
+    setForm((prev) => ({ ...prev, password: '' }));
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen w-full flex bg-zinc-950 font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
@@ -93,23 +99,23 @@ const LoginPage = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email Input */}
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  required
-                  autoComplete="email"
-                  className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200"
-                  placeholder="name@company.com"
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+            {/* Email Input */}
+            <div>
+              <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                required
+                autoComplete="email"
+                className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200"
+                placeholder="name@company.com"
+              />
+            </div>
 
               {/* Password Input */}
               <div>

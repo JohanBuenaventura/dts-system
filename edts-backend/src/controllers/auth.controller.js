@@ -37,22 +37,22 @@ export const register = async (req, res) => {
     const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
 
     const [result] = await pool.execute(
-      `INSERT INTO users (full_name, email, password_hash, role, department, is_active)
-       VALUES (?, ?, ?, 'Staff', ?, 1)`,
+      `INSERT INTO users (full_name, email, password_hash, role, department, is_active, approval_status)
+       VALUES (?, ?, ?, 'Staff', ?, 0, 'pending')`,
       [full_name, email, password_hash, department]
     );
 
     await logEvent({
       user_id:     result.insertId,
-      action:      'USER_REGISTERED',
-      description: `New Staff account registered: ${email} (${department})`,
+      action:      'REGISTRATION_PENDING',
+      description: `New registration awaiting approval: ${email} (${department})`,
       ip_address:  getIP(req),
-      status:      'success',
+      status:      'warning',
     });
 
     return res.status(201).json({
       success: true,
-      message: 'Account created successfully.',
+      message: 'Account created! Your registration is pending Admin approval. You will be able to log in once approved.',
       data: { id: result.insertId, full_name, email, role: 'Staff', department },
     });
 
@@ -99,19 +99,42 @@ export const login = async (req, res) => {
 
     const user = rows[0];
 
-    if (!user.is_active) {
+    // ─── CHANGED SECTION START: APPROVAL & ACTIVITY CHECKS ────────────────────
+    if (user.approval_status === 'pending') {
       await logEvent({
-        user_id:     user.id,
-        action:      'LOGIN_BLOCKED',
-        description: `Login attempt by deactivated account: ${email}`,
-        ip_address:  getIP(req),
-        status:      'warning',
+        user_id: user.id, 
+        action: 'LOGIN_BLOCKED',
+        description: `Login attempt by pending account: ${email}`,
+        ip_address: getIP(req), 
+        status: 'warning',
       });
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is pending approval by an Administrator.',
+      });
+    }
+
+    if (user.approval_status === 'rejected') {
+      await logEvent({
+        user_id: user.id, 
+        action: 'LOGIN_BLOCKED',
+        description: `Login attempt by rejected account: ${email}`,
+        ip_address: getIP(req), 
+        status: 'warning',
+      });
+      return res.status(403).json({
+        success: false,
+        message: 'Your registration was rejected. Contact your Administrator.',
+      });
+    }
+
+    if (!user.is_active) {
       return res.status(403).json({
         success: false,
         message: 'Your account has been deactivated. Contact the administrator.',
       });
     }
+    // ─── CHANGED SECTION END ──────────────────────────────────────────────────
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {

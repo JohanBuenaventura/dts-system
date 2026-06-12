@@ -12,15 +12,20 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Redirect to login on 401
+// Redirect to login on 401 (Except for the login endpoint itself)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Check if the failed request was trying to log in
+    const isLoginRequest = error.config?.url?.includes('/auth/login');
+
+    // Only redirect if it's a 401 unauthorized error AND it wasn't a login attempt
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('edts_token');
       localStorage.removeItem('edts_user');
       window.location.href = '/login';
     }
+    
     return Promise.reject(error);
   }
 );

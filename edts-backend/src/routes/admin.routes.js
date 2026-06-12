@@ -44,4 +44,9 @@ router.delete('/logs/clear',            clearOldLogs);
 // Stats
 router.get('/stats',                    getSystemStats);
 
+import { getPendingUsers, decideUserApproval } from '../controllers/admin.controller.js';
+// Pending Approval
+router.get('/pending',           getPendingUsers);
+router.patch('/pending/:id',     decideUserApproval);
+
 export default router;

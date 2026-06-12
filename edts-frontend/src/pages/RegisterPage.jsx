@@ -34,8 +34,8 @@ const RegisterPage = () => {
     setLoading(true);
     try {
       await api.post('/auth/register', form);
-      setSuccess('Account created! Redirecting to login...');
-      setTimeout(() => navigate('/login'), 2000);
+      setSuccess('Account created! Your registration is pending Admin approval. You will be notified once approved.');
+      setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed.');
     } finally {

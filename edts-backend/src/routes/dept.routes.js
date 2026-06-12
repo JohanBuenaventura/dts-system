@@ -206,5 +206,59 @@ router.patch('/my-department/users/:id/toggle', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 });
+// ── Get pending Staff registrations for Admin's department
+router.get('/my-department/pending', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT id, full_name, email, department, created_at
+       FROM users WHERE department = ? AND approval_status = 'pending'
+       ORDER BY created_at ASC`,
+      [req.user.department]
+    );
+    return res.status(200).json({ success: true, count: rows.length, data: rows });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
 
+// ── Approve/Reject Staff in Admin's department
+router.patch('/my-department/pending/:id', async (req, res) => {
+  try {
+    const { id }       = req.params;
+    const { decision } = req.body;
+
+    if (!['approve', 'reject'].includes(decision)) {
+      return res.status(400).json({ success: false, message: 'Invalid decision.' });
+    }
+
+    const [rows] = await pool.execute('SELECT * FROM users WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+    if (rows[0].department !== req.user.department) {
+      return res.status(403).json({ success: false, message: 'You can only manage users in your department.' });
+    }
+    if (rows[0].approval_status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Already processed.' });
+    }
+
+    if (decision === 'approve') {
+      await pool.execute(`UPDATE users SET approval_status='approved', is_active=1 WHERE id=?`, [id]);
+    } else {
+      await pool.execute(`UPDATE users SET approval_status='rejected', is_active=0 WHERE id=?`, [id]);
+    }
+
+    await logEvent({
+      user_id:     req.user.id,
+      action:      decision === 'approve' ? 'USER_APPROVED' : 'USER_REJECTED',
+      description: `Admin ${req.user.email} ${decision}d registration for ${rows[0].email}`,
+      ip_address:  getIP(req),
+      status:      decision === 'approve' ? 'success' : 'warning',
+    });
+
+    return res.status(200).json({ success: true, message: `User ${decision}d.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
 export default router;
