@@ -135,8 +135,6 @@ ADD CONSTRAINT fk_dept_archived_by FOREIGN KEY (archived_by)
 
 
 
-<<<<<<< HEAD
-=======
   -- System activity logs table
 CREATE TABLE system_logs (
   id          INT UNSIGNED  NOT NULL AUTO_INCREMENT,
@@ -174,5 +172,4 @@ WHERE role = 'Super Admin';
 UPDATE users 
 SET approval_status = 'approved' 
 WHERE is_active = 1;
->>>>>>> master
   
