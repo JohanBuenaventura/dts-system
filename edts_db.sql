@@ -157,5 +157,19 @@ ADD COLUMN archived_by INT UNSIGNED NULL,
 ADD CONSTRAINT fk_dept_archived_by FOREIGN KEY (archived_by)
   REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
+ALTER TABLE users
+MODIFY COLUMN is_active TINYINT(1) NOT NULL DEFAULT 0;
 
+ALTER TABLE users
+ADD COLUMN approval_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending' AFTER is_active;
+
+-- Explicitly approve your Super Admin if they are already in the DB
+UPDATE users 
+SET approval_status = 'approved', is_active = 1 
+WHERE role = 'Super Admin';
+
+-- Optional: If you want existing Staff/Admins to remain active during this migration
+UPDATE users 
+SET approval_status = 'approved' 
+WHERE is_active = 1;
   

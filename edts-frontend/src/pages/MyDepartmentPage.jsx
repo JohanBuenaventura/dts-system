@@ -19,6 +19,7 @@ const Modal = ({ title, onClose, children }) => (
 const MyDepartmentPage = () => {
   const { user }              = useAuth();
   const [users,   setUsers]   = useState([]);
+  const [pending, setPending] = useState([]); // Added pending approvals state
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [modal,   setModal]   = useState(null);
@@ -27,11 +28,20 @@ const MyDepartmentPage = () => {
   const [resetPass, setResetPass] = useState({ password: '', confirm: '' });
   const [formLoading, setFormLoading] = useState(false);
 
+  // Added fetch pending users for this department
+  const fetchPending = async () => {
+    try {
+      const res = await api.get('/dept/my-department/pending');
+      setPending(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const res = await api.get('/dept/my-department/users');
       setUsers(res.data.data);
+      await fetchPending(); // Concurrently load pending items
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -47,6 +57,17 @@ const MyDepartmentPage = () => {
     setModal(null); setSelectedUser(null);
     setForm({ full_name: '', email: '', password: '' });
     setResetPass({ password: '', confirm: '' });
+  };
+
+  // Added decision handler for department manager approvals
+  const handleDecision = async (id, decision) => {
+    try {
+      await api.patch(`/dept/my-department/pending/${id}`, { decision });
+      showMsg('success', `User ${decision}d.`);
+      fetchUsers(); // Triggers re-fetch of users and pending registrations
+    } catch (err) {
+      showMsg('error', err.response?.data?.message || 'Failed.');
+    }
   };
 
   const handleCreate = async (e) => {
@@ -103,6 +124,35 @@ const MyDepartmentPage = () => {
           <div className={`px-4 py-3 rounded-lg mb-5 text-sm font-medium
             ${message.type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-600'}`}>
             {message.text}
+          </div>
+        )}
+
+        {/* Department Pending Approvals Notice */}
+        {pending.length > 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-6 shadow-sm">
+            <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+              ⏳ Pending Approvals ({pending.length})
+            </h3>
+            <div className="space-y-2">
+              {pending.map(p => (
+                <div key={p.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-yellow-100 shadow-sm">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{p.full_name}</p>
+                    <p className="text-xs text-gray-400">{p.email} · {p.department}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleDecision(p.id, 'approve')}
+                      className="text-xs px-3 py-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg font-medium transition">
+                      Approve
+                    </button>
+                    <button onClick={() => handleDecision(p.id, 'reject')}
+                      className="text-xs px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-medium transition">
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

@@ -255,6 +255,74 @@ export const deleteUser = async (req, res) => {
   }
 };
 
+// ─── CHANGED SECTION START: APPROVAL MANAGEMENT ──────────────────────────────
+
+// ─── GET PENDING USERS ────────────────────────────────────────────────────────
+export const getPendingUsers = async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT id, full_name, email, department, created_at
+       FROM users WHERE approval_status = 'pending'
+       ORDER BY created_at ASC`
+    );
+    return res.status(200).json({ success: true, count: rows.length, data: rows });
+  } catch (error) {
+    console.error('[GET PENDING ERROR]', error);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+// ─── APPROVE / REJECT USER ────────────────────────────────────────────────────
+export const decideUserApproval = async (req, res) => {
+  try {
+    const { id }       = req.params;
+    const { decision } = req.body; // 'approve' | 'reject'
+
+    if (!['approve', 'reject'].includes(decision)) {
+      return res.status(400).json({ success: false, message: 'Invalid decision.' });
+    }
+
+    const [rows] = await pool.execute('SELECT * FROM users WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    if (rows[0].approval_status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'This account has already been processed.' });
+    }
+
+    if (decision === 'approve') {
+      await pool.execute(
+        `UPDATE users SET approval_status = 'approved', is_active = 1 WHERE id = ?`, [id]
+      );
+    } else {
+      await pool.execute(
+        `UPDATE users SET approval_status = 'rejected', is_active = 0 WHERE id = ?`, [id]
+      );
+    }
+
+    await logEvent({
+      user_id:     req.user.id,
+      action:      decision === 'approve' ? 'USER_APPROVED' : 'USER_REJECTED',
+      description: `${req.user.role} ${decision}d registration for ${rows[0].email} by ${req.user.email}`,
+      ip_address:  getIP(req),
+      status:      decision === 'approve' ? 'success' : 'warning',
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `User ${decision === 'approve' ? 'approved' : 'rejected'} successfully.`,
+    });
+
+  } catch (error) {
+    console.error('[DECIDE APPROVAL ERROR]', error);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+// ─── CHANGED SECTION END ──────────────────────────────────────────────────────
+
+
 // ════════════════════════════════════════
 // DEPARTMENT MANAGEMENT
 // ════════════════════════════════════════
@@ -376,7 +444,6 @@ export const archiveDepartment = async (req, res) => {
     const isArchived = dept.is_archived;
 
     if (!isArchived) {
-      // ── Archiving: check for active users
       const [users] = await pool.execute(
         'SELECT id FROM users WHERE department = ? AND is_active = 1', [dept.name]
       );
@@ -403,7 +470,6 @@ export const archiveDepartment = async (req, res) => {
       return res.status(200).json({ success: true, message: `Department "${dept.name}" archived.` });
 
     } else {
-      // ── Restoring
       await pool.execute(
         'UPDATE departments SET is_archived = 0, archived_at = NULL, archived_by = NULL WHERE id = ?',
         [id]
@@ -529,7 +595,6 @@ export const getSystemLogs = async (req, res) => {
   }
 };
 
-// ─── CLEAR OLD LOGS ───────────────────────────────────────────────────────────
 export const clearOldLogs = async (req, res) => {
   try {
     const { days = 30 } = req.body;
