@@ -4,15 +4,32 @@ import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import { exportDocumentsCSV, exportDocumentsPDF } from '../utils/exportUtils';
+import { 
+  Plus, 
+  FileText, 
+  FileDown, 
+  ArrowRight, 
+  Search, 
+  FolderOpen,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronDown,
+  SlidersHorizontal,
+  CalendarDays,
+  MapPin
+} from 'lucide-react';
 
+// ─── STATUS BADGE (Synced with Premium Dark Dashboard Aesthetics) ─────────────
 const statusBadge = (status) => {
   const map = {
-    'Created':    'bg-gray-100 text-gray-700',
-    'In Transit': 'bg-yellow-100 text-yellow-700',
-    'Received':   'bg-blue-100 text-blue-700',
-    'Completed':  'bg-green-100 text-green-700',
+    'Created':    'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
+    'In Transit': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    'Received':   'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+    'Completed':  'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   };
-  return map[status] || 'bg-gray-100 text-gray-600';
+  return map[status] || 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
 };
 
 const DOC_TYPES = [
@@ -35,43 +52,45 @@ const Pagination = ({ pagination, onPageChange }) => {
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-gray-100">
-      <p className="text-sm text-gray-500">
-        Showing <span className="font-medium">{from}</span> to <span className="font-medium">{to}</span> of{' '}
-        <span className="font-medium">{total}</span> documents
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-zinc-800/60 bg-zinc-950/40 backdrop-blur-md">
+      <p className="text-xs text-zinc-500 font-medium">
+        Showing <span className="font-semibold text-zinc-300">{from}</span> to <span className="font-semibold text-zinc-300">{to}</span> of{' '}
+        <span className="font-semibold text-indigo-400">{total}</span> documents
       </p>
       <div className="flex items-center gap-1">
         {/* First */}
         <button onClick={() => onPageChange(1)} disabled={page === 1}
-          className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
-          «
+          className="p-2 rounded-xl border border-zinc-800 text-zinc-400 bg-zinc-900/20 hover:bg-zinc-800/80 hover:text-zinc-200 disabled:opacity-20 disabled:cursor-not-allowed transition-all">
+          <ChevronsLeft className="w-3.5 h-3.5" />
         </button>
         {/* Prev */}
         <button onClick={() => onPageChange(page - 1)} disabled={page === 1}
-          className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
-          ‹ Prev
+          className="p-2 rounded-xl border border-zinc-800 text-zinc-400 bg-zinc-900/20 hover:bg-zinc-800/80 hover:text-zinc-200 disabled:opacity-20 disabled:cursor-not-allowed transition-all">
+          <ChevronLeft className="w-3.5 h-3.5" />
         </button>
+        
         {/* Page numbers */}
-        {pages[0] > 1 && <span className="px-1 text-gray-300 text-xs">...</span>}
+        {pages[0] > 1 && <span className="px-1 text-zinc-600 text-xs font-bold">...</span>}
         {pages.map(p => (
           <button key={p} onClick={() => onPageChange(p)}
-            className={`px-3 py-1.5 text-xs rounded-lg border transition
+            className={`px-3 py-1.5 text-xs rounded-xl border transition-all font-semibold tracking-tight
               ${p === page
-                ? 'bg-blue-700 border-blue-700 text-white font-semibold'
-                : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-950'
+                : 'border-zinc-800 text-zinc-400 bg-zinc-900/20 hover:bg-zinc-800 hover:text-zinc-200'}`}>
             {p}
           </button>
         ))}
-        {pages[pages.length - 1] < totalPages && <span className="px-1 text-gray-300 text-xs">...</span>}
+        {pages[pages.length - 1] < totalPages && <span className="px-1 text-zinc-600 text-xs font-bold">...</span>}
+        
         {/* Next */}
         <button onClick={() => onPageChange(page + 1)} disabled={page === totalPages}
-          className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
-          Next ›
+          className="p-2 rounded-xl border border-zinc-800 text-zinc-400 bg-zinc-900/20 hover:bg-zinc-800/80 hover:text-zinc-200 disabled:opacity-20 disabled:cursor-not-allowed transition-all">
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
         {/* Last */}
         <button onClick={() => onPageChange(totalPages)} disabled={page === totalPages}
-          className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
-          »
+          className="p-2 rounded-xl border border-zinc-800 text-zinc-400 bg-zinc-900/20 hover:bg-zinc-800/80 hover:text-zinc-200 disabled:opacity-20 disabled:cursor-not-allowed transition-all">
+          <ChevronsRight className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
@@ -81,7 +100,6 @@ const Pagination = ({ pagination, onPageChange }) => {
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 const DocumentsPage = () => {
   const [docs,       setDocs]       = useState([]);
-  const [allDocs,    setAllDocs]    = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [exporting,  setExporting]  = useState(false);
@@ -117,7 +135,6 @@ const DocumentsPage = () => {
 
   useEffect(() => { fetchDocs(); }, [page]);
 
-  // Reset to page 1 on filter change
   const handleSearch = (val) => {
     setSearch(val);
     setPage(1);
@@ -140,7 +157,6 @@ const DocumentsPage = () => {
     setPage(newPage);
   };
 
-  // ── Fetch ALL docs for export (no pagination)
   const fetchAllForExport = async () => {
     const res = await api.get('/documents', {
       params: { page: 1, limit: 9999, search, status: filter, type },
@@ -172,110 +188,198 @@ const DocumentsPage = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  const inputClass = "w-full bg-zinc-900/20 border border-zinc-800/80 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:bg-zinc-900/40 focus:ring-4 focus:ring-indigo-500/5 transition-all duration-200 appearance-none";
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+  return (
+    <div className="min-h-screen bg-zinc-950 font-sans selection:bg-indigo-500/30 selection:text-indigo-200 relative overflow-x-hidden">
+      
+      {/* Ambient background blur glows */}
+      <div className="pointer-events-none fixed top-0 left-1/4 w-[600px] h-[600px] bg-indigo-500/5 blur-[150px] rounded-full" />
+      <div className="pointer-events-none fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full" />
+
+      <Navbar />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+
+        {/* ── Header Area ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Documents</h2>
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
+                <FolderOpen className="w-4 h-4 text-indigo-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-zinc-100 tracking-tight">
+                Document Ledger
+              </h2>
+            </div>
             {pagination && (
-              <p className="text-sm text-gray-500 mt-1">
-                {pagination.total} total document{pagination.total !== 1 ? 's' : ''}
+              <p className="text-xs text-zinc-500 mt-2 font-medium">
+                A total of <span className="text-zinc-400 font-semibold">{pagination.total}</span> recorded document{pagination.total !== 1 ? 's' : ''} available.
               </p>
             )}
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {/* Export Buttons */}
-            <button onClick={handleExportCSV} disabled={exporting}
-              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition disabled:opacity-60 flex items-center gap-1.5">
-              📥 CSV
-            </button>
-            <button onClick={handleExportPDF} disabled={exporting}
-              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition disabled:opacity-60 flex items-center gap-1.5">
-              📄 PDF
-            </button>
+          
+          {/* Export & Creation Actions Row */}
+          <div className="flex items-center gap-2.5 self-start sm:self-center">
+            <div className="flex items-center bg-zinc-900/30 border border-zinc-800/60 p-1 rounded-xl backdrop-blur-md">
+              <button onClick={handleExportCSV} disabled={exporting || loading}
+                className="hover:bg-zinc-800 text-zinc-400 hover:text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 disabled:opacity-30 flex items-center gap-1.5">
+                <FileDown className="w-3.5 h-3.5" /> CSV
+              </button>
+              <div className="w-[1px] h-4 bg-zinc-800/80 mx-1" />
+              <button onClick={handleExportPDF} disabled={exporting || loading}
+                className="hover:bg-zinc-800 text-zinc-400 hover:text-rose-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 disabled:opacity-30 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5" /> PDF
+              </button>
+            </div>
+
             <Link to="/documents/create"
-              className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-              + New Document
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg shadow-indigo-950 border border-indigo-500 active:scale-[0.98]">
+              <Plus className="w-3.5 h-3.5" /> New Document
             </Link>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          <input
-            type="text"
-            placeholder="Search title or tracking code..."
-            value={search}
-            onChange={e => handleSearch(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <select value={filter} onChange={e => handleFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">All Statuses</option>
-            {['Created','In Transit','Received','Completed'].map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          <select value={type} onChange={e => handleType(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">All Types</option>
-            {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
+        {/* ── Filters Section ── */}
+        <div className="bg-zinc-900/20 border border-zinc-900/80 p-4 rounded-2xl mb-6 backdrop-blur-md">
+          <div className="flex items-center gap-2 mb-3 text-zinc-500">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-400" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">Filter Ledger Records</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Search Input */}
+            <div className="relative group">
+              <Search className="w-4 h-4 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-400 transition-colors" />
+              <input
+                type="text"
+                placeholder="Search title, tracking code..."
+                value={search}
+                onChange={e => handleSearch(e.target.value)}
+                className={`${inputClass} pl-10`}
+              />
+            </div>
+            
+            {/* Status Dropdown */}
+            <div className="relative">
+              <select value={filter} onChange={e => handleFilter(e.target.value)} className={inputClass}>
+                <option value="" className="bg-zinc-950 text-zinc-400">All Flow Statuses</option>
+                {['Created','In Transit','Received','Completed'].map(s => (
+                  <option key={s} value={s} className="bg-zinc-950 text-zinc-200">{s}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-500">
+                 <ChevronDown className="w-3.5 h-3.5" />
+              </div>
+            </div>
+
+            {/* Type Dropdown */}
+            <div className="relative">
+              <select value={type} onChange={e => handleType(e.target.value)} className={inputClass}>
+                <option value="" className="bg-zinc-950 text-zinc-400">All Document Categories</option>
+                {DOC_TYPES.map(t => <option key={t} value={t} className="bg-zinc-950 text-zinc-200">{t}</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-500">
+                 <ChevronDown className="w-3.5 h-3.5" />
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl shadow overflow-hidden">
+        {/* ── Table Board Container ── */}
+        <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-xl shadow-black/20 overflow-hidden">
+          
           {loading ? (
-            <div className="p-8 text-center text-gray-400">Loading documents...</div>
+            <div className="p-8 divide-y divide-zinc-900">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="py-4 flex items-center justify-between gap-6 animate-pulse">
+                  <div className="h-3 w-24 bg-zinc-800 rounded" />
+                  <div className="h-3 flex-1 bg-zinc-800/60 rounded" />
+                  <div className="h-3 w-20 bg-zinc-800/40 rounded" />
+                  <div className="h-5 w-16 bg-zinc-800 rounded-full" />
+                </div>
+              ))}
+            </div>
           ) : docs.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">
-              No documents found.{' '}
+            <div className="p-16 text-center flex flex-col items-center justify-center">
+              <div className="w-14 h-14 rounded-2xl bg-zinc-950/60 border border-zinc-900 flex items-center justify-center mb-4 shadow-inner">
+                <Search className="w-5 h-5 text-zinc-600" />
+              </div>
+              <p className="text-zinc-300 font-semibold text-sm mb-1">No matching documents</p>
+              <p className="text-zinc-500 text-xs mb-5 max-w-xs leading-relaxed">No records matched your current query parameters. Try widening or updating filters.</p>
               {(search || filter || type) && (
                 <button
                   onClick={() => { setSearch(''); setFilter(''); setType(''); setPage(1); fetchDocs({ page: 1, search: '', status: '', type: '' }); }}
-                  className="text-blue-600 hover:underline">
-                  Clear filters
+                  className="text-indigo-400 hover:text-indigo-300 font-semibold text-xs transition-colors border border-indigo-500/20 px-3 py-2 rounded-xl bg-indigo-500/5 hover:bg-indigo-600/10">
+                  Clear Parameters
                 </button>
               )}
             </div>
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
-                    <tr>
-                      <th className="px-6 py-3 text-left">Tracking Code</th>
-                      <th className="px-6 py-3 text-left">Title</th>
-                      <th className="px-6 py-3 text-left">Type</th>
-                      <th className="px-6 py-3 text-left">Status</th>
-                      <th className="px-6 py-3 text-left">Location</th>
-                      <th className="px-6 py-3 text-left">Created</th>
-                      <th className="px-6 py-3 text-left">Action</th>
+                <table className="w-full text-left border-collapse table-auto">
+                  <thead>
+                    <tr className="bg-zinc-900/40 border-b border-zinc-800/60">
+                      <th className="px-6 py-3.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Tracking Code</th>
+                      <th className="px-6 py-3.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Document Details</th>
+                      <th className="px-6 py-3.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Category</th>
+                      <th className="px-6 py-3.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Current Location</th>
+                      <th className="px-6 py-3.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Logged Date</th>
+                      <th className="px-6 py-3.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-zinc-900/60">
                     {docs.map(doc => (
-                      <tr key={doc.id} className="hover:bg-gray-50 transition">
-                        <td className="px-6 py-4 font-mono text-xs text-blue-700">{doc.tracking_code}</td>
-                        <td className="px-6 py-4 font-medium text-gray-800">{doc.title}</td>
-                        <td className="px-6 py-4 text-gray-500">{doc.type}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusBadge(doc.status)}`}>
+                      <tr key={doc.id} className="hover:bg-zinc-900/30 transition-colors group">
+                        
+                        {/* Code Column */}
+                        <td className="px-6 py-4 whitespace-nowrap font-mono text-xs text-indigo-400 font-semibold tracking-tight">
+                          {doc.tracking_code}
+                        </td>
+                        
+                        {/* Title Column */}
+                        <td className="px-6 py-4 max-w-xs sm:max-w-md">
+                          <div className="text-sm font-semibold text-zinc-200 group-hover:text-indigo-300 transition-colors truncate">
+                            {doc.title}
+                          </div>
+                        </td>
+                        
+                        {/* Type Column */}
+                        <td className="px-6 py-4 whitespace-nowrap text-xs text-zinc-400 font-medium">
+                          {doc.type}
+                        </td>
+                        
+                        {/* Location Chip Column */}
+                        <td className="px-6 py-4 whitespace-nowrap text-xs text-zinc-400 font-medium">
+                          <div className="inline-flex items-center gap-1.5 bg-zinc-950/40 border border-zinc-900 px-2 py-1 rounded-lg">
+                            <MapPin className="w-3 h-3 text-cyan-500" />
+                            {doc.current_location_dept}
+                          </div>
+                        </td>
+
+                        {/* Status Badge Column */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${statusBadge(doc.status)}`}>
                             {doc.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-gray-500">{doc.current_location_dept}</td>
-                        <td className="px-6 py-4 text-gray-400 text-xs">
-                          {new Date(doc.created_at).toLocaleDateString()}
+                        
+                        {/* Date Column */}
+                        <td className="px-6 py-4 whitespace-nowrap text-xs text-zinc-500 font-medium">
+                          <div className="flex items-center gap-1.5">
+                            <CalendarDays className="w-3.5 h-3.5 text-zinc-600" />
+                            {new Date(doc.created_at).toLocaleDateString(undefined, {
+                              month: 'short', day: 'numeric', year: 'numeric'
+                            })}
+                          </div>
                         </td>
-                        <td className="px-6 py-4">
+                        
+                        {/* Action Column */}
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
                           <Link to={`/documents/${doc.id}`}
-                            className="text-blue-600 hover:underline font-medium">
-                            View →
+                            className="text-zinc-500 hover:text-indigo-400 border border-transparent hover:border-zinc-800 bg-transparent hover:bg-zinc-950 p-1.5 rounded-xl transition-all inline-flex items-center justify-center">
+                            <ArrowRight className="w-4 h-4" />
                           </Link>
                         </td>
                       </tr>
@@ -284,7 +388,7 @@ const DocumentsPage = () => {
                 </table>
               </div>
 
-              {/* Pagination */}
+              {/* Table Bottom Pagination */}
               <Pagination pagination={pagination} onPageChange={handlePageChange} />
             </>
           )}
