@@ -167,3 +167,18 @@ UPDATE users
 SET approval_status = 'approved' 
 WHERE is_active = 1;
   
+CREATE TABLE document_attachments (
+  id          INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  document_id INT UNSIGNED  NOT NULL,
+  file_name   VARCHAR(255)  NOT NULL,
+  file_path   VARCHAR(500)  NOT NULL,
+  file_type   VARCHAR(100)  NOT NULL,
+  file_size   INT UNSIGNED  NOT NULL,
+  uploaded_by INT UNSIGNED  NOT NULL,
+  uploaded_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_attach_document FOREIGN KEY (document_id)
+    REFERENCES documents(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_attach_user FOREIGN KEY (uploaded_by)
+    REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
