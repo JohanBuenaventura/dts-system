@@ -8,7 +8,9 @@ import {
   ArrowRight, 
   AlertCircle, 
   CheckCircle2, 
-  ChevronDown 
+  ChevronDown,
+  Eye,
+  EyeOff 
 } from 'lucide-react';
 
 const DEPARTMENTS = [
@@ -19,8 +21,10 @@ const DEPARTMENTS = [
 const RegisterPage = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    full_name: '', email: '', password: '', department: '',
+    full_name: '', email: '', password: '', confirm_password: '', department: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error,   setError]   = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,9 +35,18 @@ const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(''); setSuccess('');
+
+    // Client-side Password Match Verification
+    if (form.password !== form.confirm_password) {
+      return setError('Passwords do not match. Please verify your credentials.');
+    }
+
     setLoading(true);
     try {
-      await api.post('/auth/register', form);
+      // Destructure to remove confirm_password from API request payload
+      const { confirm_password, ...registrationPayload } = form;
+      
+      await api.post('/auth/register', registrationPayload);
       setSuccess('Account created! Your registration is pending Admin approval. You will be notified once approved.');
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
@@ -147,16 +160,53 @@ const RegisterPage = () => {
               <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
                 Password
               </label>
-              <input
-                type="password"
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                required
-                minLength={6}
-                className={inputClass}
-                placeholder="Min. 6 characters"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  required
+                  minLength={6}
+                  className={`${inputClass} pr-11`}
+                  placeholder="Min. 6 characters"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3.5 text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none"
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm Password Input */}
+            <div>
+              <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  name="confirm_password"
+                  value={form.confirm_password}
+                  onChange={handleChange}
+                  required
+                  minLength={6}
+                  className={`${inputClass} pr-11`}
+                  placeholder="Repeat your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3.5 text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none"
+                  title={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             {/* Submit Button */}

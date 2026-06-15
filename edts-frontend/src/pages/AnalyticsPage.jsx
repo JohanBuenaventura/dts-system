@@ -185,10 +185,10 @@ const AnalyticsPage = () => {
           </div>
         )}
 
-        {/* ── ROW 1: Pie + Line ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* ── UNIFIED CHART GRID (FIXED LAYOUT BUG) ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          {/* Status Breakdown Pie */}
+          {/* 1. Status Breakdown Pie (Visible to All) */}
           <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-xl p-6">
             <h3 className="font-semibold text-zinc-100 flex items-center gap-2 mb-1 text-sm">
               <PieChartIcon className="w-4 h-4 text-indigo-400" /> Document Status Breakdown
@@ -223,7 +223,7 @@ const AnalyticsPage = () => {
             )}
           </div>
 
-          {/* Monthly Volume Line — Super Admin only */}
+          {/* 2. Monthly Volume Line (Super Admin Only) */}
           {isSuperAdmin && (
             <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-xl p-6">
               <h3 className="font-semibold text-zinc-100 flex items-center gap-2 mb-1 text-sm">
@@ -252,12 +252,8 @@ const AnalyticsPage = () => {
               )}
             </div>
           )}
-        </div>
 
-        {/* ── ROW 2 ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-          {/* Documents per Department — Super Admin only */}
+          {/* 3. Documents per Department (Super Admin Only) */}
           {isSuperAdmin && (
             <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-xl p-6">
               <h3 className="font-semibold text-zinc-100 flex items-center gap-2 mb-1 text-sm">
@@ -297,7 +293,7 @@ const AnalyticsPage = () => {
             </div>
           )}
 
-          {/* Documents by Type */}
+          {/* 4. Documents by Type (Visible to All) */}
           <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-xl p-6">
             <h3 className="font-semibold text-zinc-100 flex items-center gap-2 mb-1 text-sm">
               <Layers className="w-4 h-4 text-purple-400" /> Documents by Type
@@ -329,6 +325,7 @@ const AnalyticsPage = () => {
               </ResponsiveContainer>
             )}
           </div>
+
         </div>
 
       </div>

@@ -125,13 +125,7 @@ CREATE TABLE system_logs (
     REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- Archive departments (instead of hard delete)
-ALTER TABLE departments
-ADD COLUMN is_archived  TINYINT(1)   NOT NULL DEFAULT 0 AFTER name,
-ADD COLUMN archived_at  DATETIME     NULL,
-ADD COLUMN archived_by  INT UNSIGNED NULL,
-ADD CONSTRAINT fk_dept_archived_by FOREIGN KEY (archived_by)
-  REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+
 
 
 

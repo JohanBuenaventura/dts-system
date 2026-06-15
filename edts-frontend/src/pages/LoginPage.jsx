@@ -3,12 +3,19 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import { FileText, Loader2, ArrowRight } from 'lucide-react';
+import { 
+  FileText, 
+  Loader2, 
+  ArrowRight,
+  Eye,
+  EyeOff
+} from 'lucide-react';
 
 const LoginPage = () => {
   const { login }             = useAuth();
   const navigate              = useNavigate();
   const [form, setForm]       = useState({ email: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -16,25 +23,25 @@ const LoginPage = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
 
-  setError('');
-  setLoading(true);
+    setError('');
+    setLoading(true);
 
-  try {
-    const res = await api.post('/auth/login', form);
-    login(res.data.user, res.data.token);
-    navigate('/dashboard');
-  } catch (err) {
-    const msg = err.response?.data?.message || 'Invalid email or password.';
-    setError(msg);
-    // Clear only the password — keep email so user doesn't retype it
-    setForm((prev) => ({ ...prev, password: '' }));
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      const res = await api.post('/auth/login', form);
+      login(res.data.user, res.data.token);
+      navigate('/dashboard');
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Invalid email or password.';
+      setError(msg);
+      // Clear only the password — keep email so user doesn't retype it
+      setForm((prev) => ({ ...prev, password: '' }));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen w-full flex bg-zinc-950 font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
@@ -99,23 +106,23 @@ const LoginPage = () => {
               </div>
             )}
 
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            {/* Email Input */}
-            <div>
-              <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                required
-                autoComplete="email"
-                className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200"
-                placeholder="name@company.com"
-              />
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+              {/* Email Input */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                  autoComplete="email"
+                  className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200"
+                  placeholder="name@company.com"
+                />
+              </div>
 
               {/* Password Input */}
               <div>
@@ -123,18 +130,27 @@ const LoginPage = () => {
                   <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
                     Password
                   </label>
-                  {/* Optional: Add a forgot password link here in the future */}
                 </div>
-                <input
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  required
-                  autoComplete="current-password"
-                  className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200"
-                  placeholder="••••••••"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    required
+                    autoComplete="current-password"
+                    className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 pr-11 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3.5 text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none"
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               {/* Submit Button */}
