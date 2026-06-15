@@ -110,25 +110,6 @@ INSERT INTO departments (name) VALUES
   ('Administration'),
   ('System Administrator');
 
-
-  -- System activity logs
-CREATE TABLE system_logs (
-  id          INT UNSIGNED  NOT NULL AUTO_INCREMENT,
-  user_id     INT UNSIGNED  NULL,
-  action      VARCHAR(100)  NOT NULL,
-  description TEXT          NOT NULL,
-  ip_address  VARCHAR(45)   NULL,
-  status      ENUM('success','warning','error') NOT NULL DEFAULT 'success',
-  created_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  CONSTRAINT fk_syslog_user FOREIGN KEY (user_id)
-    REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB;
-
-
-
-
-
   -- System activity logs table
 CREATE TABLE system_logs (
   id          INT UNSIGNED  NOT NULL AUTO_INCREMENT,
