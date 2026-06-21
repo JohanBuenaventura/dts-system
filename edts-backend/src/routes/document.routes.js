@@ -5,17 +5,25 @@ import {
   getAllDocuments,
   getDocumentById,
   searchByTrackingCode,
+  getOverdueCount,
+  getActiveDepartments, // <-- Added import here
 } from '../controllers/document.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
-// All document routes require authentication
 router.use(protect);
 
-router.get('/',        getAllDocuments);
-router.get('/search',  searchByTrackingCode);
-router.get('/:id',     getDocumentById);
-router.post('/',       createDocument);
+// ── Static routes FIRST (before /:id) ────────────────────────────────────────
+router.get('/search',             searchByTrackingCode);
+router.get('/overdue/count',      getOverdueCount);
+router.get('/active-departments', getActiveDepartments); // <-- Added route here
+
+// ── General routes
+router.get('/',    getAllDocuments);
+router.post('/',   createDocument);
+
+// ── Dynamic route LAST ────────────────────────────────────────────────────────
+router.get('/:id', getDocumentById);
 
 export default router;

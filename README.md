@@ -225,7 +225,7 @@ CREATE TABLE system_logs (
 INSERT INTO users (full_name, email, password_hash, role, department, is_active)
 VALUES (
   'Super Administrator',
-  'superadmin@edts.com',
+  'superadmin@gmail.com',
   '$2b$12$GX6S3sMqMrzgHlAVKSvFdO9tvSCCJnCqauLDiRBBbHMUbPMkZJbLi',
   'Super Admin',
   'System Administrator',

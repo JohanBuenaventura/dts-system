@@ -16,6 +16,7 @@ import {
   ArrowRight,
   FileText,
   Activity,
+  AlertTriangle, // Added this icon for your Overdue card
 } from 'lucide-react';
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
@@ -72,14 +73,22 @@ const progressColor = (status) => {
 const DashboardPage = () => {
   const { user }              = useAuth();
   const [docs,    setDocs]    = useState([]);
+  const [overdue, setOverdue] = useState(0); // Added overdue state
   const [loading, setLoading] = useState(true);
 
   const isSuperAdmin = user?.role === 'Super Admin';
   const isAdmin      = user?.role === 'Admin';
 
+  // Updated useEffect to fetch documents and overdue count concurrently
   useEffect(() => {
-    api.get('/documents', { params: { page: 1, limit: 9999 } })
-      .then(res => setDocs(res.data.data ?? []))
+    Promise.all([
+      api.get('/documents', { params: { page: 1, limit: 9999 } }),
+      api.get('/documents/overdue/count'),
+    ])
+      .then(([docsRes, overdueRes]) => {
+        setDocs(docsRes.data.data ?? []);
+        setOverdue(overdueRes.data.data.overdue ?? 0);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -135,8 +144,8 @@ const DashboardPage = () => {
           </p>
         </div>
 
-        {/* ── Stat Cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* ── Stat Cards ── (Updated grid to lg:grid-cols-5 to fit the new card) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <StatCard
             label="Total Documents"
             value={counts.total}
@@ -167,6 +176,15 @@ const DashboardPage = () => {
             borderColor="border-emerald-900/50"
             iconColor="text-emerald-400"
             icon={CheckCircle2}
+            loading={loading}
+          />
+          {/* Added Overdue StatCard */}
+          <StatCard
+            label="Overdue"
+            value={overdue}
+            borderColor="border-red-900/50"
+            iconColor="text-red-500"
+            icon={AlertTriangle}
             loading={loading}
           />
         </div>

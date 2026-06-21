@@ -163,3 +163,34 @@ CREATE TABLE document_attachments (
   CONSTRAINT fk_attach_user FOREIGN KEY (uploaded_by)
     REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+
+-- Add fields to documents table
+ALTER TABLE documents
+ADD COLUMN due_date       DATE         NULL              AFTER description,
+ADD COLUMN urgency        ENUM('Normal','Urgent','Highly Urgent') NOT NULL DEFAULT 'Normal' AFTER due_date,
+ADD COLUMN dest_department VARCHAR(100) NULL             AFTER urgency,
+ADD COLUMN document_kind  VARCHAR(100) NOT NULL DEFAULT 'General' AFTER type;
+
+-- Add remarks + specific user to document_logs
+ALTER TABLE document_logs
+ADD COLUMN remarks    TEXT         NULL AFTER to_department,
+ADD COLUMN to_user_id INT UNSIGNED NULL AFTER remarks,
+ADD CONSTRAINT fk_log_to_user FOREIGN KEY (to_user_id)
+  REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- Multi-department recipients table
+CREATE TABLE document_recipients (
+  id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  document_id  INT UNSIGNED NOT NULL,
+  department   VARCHAR(100) NOT NULL,
+  user_id      INT UNSIGNED NULL,
+  status       ENUM('Pending','Received','Rejected') NOT NULL DEFAULT 'Pending',
+  remarks      TEXT         NULL,
+  notified_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  responded_at DATETIME     NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_recv_doc  FOREIGN KEY (document_id)
+    REFERENCES documents(id) ON DELETE CASCADE,
+  CONSTRAINT fk_recv_user FOREIGN KEY (user_id)
+    REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
