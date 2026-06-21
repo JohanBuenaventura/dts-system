@@ -14,7 +14,11 @@ import {
   deleteDepartment,
   getSystemLogs,
   clearOldLogs,
-  getSystemStats,
+  getSystemStats,getAllDocumentTypes,
+  createDocumentType,
+  updateDocumentType,
+  archiveDocumentType,
+  deleteDocumentType,
 } from '../controllers/admin.controller.js';
 import { protect, superAdminOnly } from '../middleware/auth.middleware.js';
 
@@ -37,6 +41,12 @@ router.put('/departments/:id',          updateDepartment);
 router.patch('/departments/:id/archive', archiveDepartment);
 router.delete('/departments/:id',       deleteDepartment);
 
+// Document Types
+   router.get('/document-types',              getAllDocumentTypes);
+   router.post('/document-types',             createDocumentType);
+   router.put('/document-types/:id',          updateDocumentType);
+   router.patch('/document-types/:id/archive', archiveDocumentType);
+   router.delete('/document-types/:id',       deleteDocumentType);
 // Logs
 router.get('/logs',                     getSystemLogs);
 router.delete('/logs/clear',            clearOldLogs);

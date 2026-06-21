@@ -7,6 +7,7 @@ import {
   searchByTrackingCode,
   getOverdueCount,
   getActiveDepartments, // <-- Added import here
+  getActiveDocumentTypes,
 } from '../controllers/document.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 
@@ -18,6 +19,7 @@ router.use(protect);
 router.get('/search',             searchByTrackingCode);
 router.get('/overdue/count',      getOverdueCount);
 router.get('/active-departments', getActiveDepartments); // <-- Added route here
+router.get('/active-types',       getActiveDocumentTypes);
 
 // ── General routes
 router.get('/',    getAllDocuments);

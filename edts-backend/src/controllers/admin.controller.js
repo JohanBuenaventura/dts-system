@@ -682,3 +682,192 @@ export const getSystemStats = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error fetching stats.' });
   }
 };
+
+// ════════════════════════════════════════
+// DOCUMENT TYPE MANAGEMENT
+// ════════════════════════════════════════
+
+export const getAllDocumentTypes = async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT dt.*, ab.full_name as archived_by_name
+       FROM document_types dt
+       LEFT JOIN users ab ON ab.id = dt.archived_by
+       ORDER BY dt.is_archived ASC, dt.name ASC`
+    );
+    return res.status(200).json({ success: true, data: rows });
+  } catch (error) {
+    console.error('[GET DOC TYPES ERROR]', error);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+export const createDocumentType = async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Document type name is required.' });
+    }
+
+    const [existing] = await pool.execute(
+      'SELECT id FROM document_types WHERE name = ?', [name.trim()]
+    );
+    if (existing.length > 0) {
+      return res.status(409).json({ success: false, message: 'Document type already exists.' });
+    }
+
+    const [result] = await pool.execute(
+      'INSERT INTO document_types (name) VALUES (?)', [name.trim()]
+    );
+
+    await logEvent({
+      user_id:     req.user.id,
+      action:      'DOCUMENT_TYPE_CREATED',
+      description: `Document type "${name.trim()}" created by ${req.user.email}`,
+      ip_address:  getIP(req),
+      status:      'success',
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Document type created successfully.',
+      data: { id: result.insertId, name: name.trim() },
+    });
+
+  } catch (error) {
+    console.error('[CREATE DOC TYPE ERROR]', error);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+export const updateDocumentType = async (req, res) => {
+  try {
+    const { id }   = req.params;
+    const { name } = req.body;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Document type name is required.' });
+    }
+
+    const [rows] = await pool.execute('SELECT * FROM document_types WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Document type not found.' });
+    }
+
+    const oldName = rows[0].name;
+
+    const [existing] = await pool.execute(
+      'SELECT id FROM document_types WHERE name = ? AND id != ?', [name.trim(), id]
+    );
+    if (existing.length > 0) {
+      return res.status(409).json({ success: false, message: 'Another document type with that name already exists.' });
+    }
+
+    await pool.execute('UPDATE document_types SET name = ? WHERE id = ?', [name.trim(), id]);
+    
+    // Optional: If your main documents table relies on the type literal string, update them as well
+    await pool.execute('UPDATE documents SET type = ? WHERE type = ?', [name.trim(), oldName]);
+
+    await logEvent({
+      user_id:     req.user.id,
+      action:      'DOCUMENT_TYPE_RENAMED',
+      description: `Document type renamed from "${oldName}" to "${name.trim()}" by ${req.user.email}`,
+      ip_address:  getIP(req),
+      status:      'success',
+    });
+
+    return res.status(200).json({ success: true, message: 'Document type renamed successfully.' });
+
+  } catch (error) {
+    console.error('[UPDATE DOC TYPE ERROR]', error);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+export const archiveDocumentType = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await pool.execute('SELECT * FROM document_types WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Document type not found.' });
+    }
+
+    const docType    = rows[0];
+    const isArchived = docType.is_archived;
+
+    if (!isArchived) {
+      await pool.execute(
+        'UPDATE document_types SET is_archived = 1, archived_at = NOW(), archived_by = ? WHERE id = ?',
+        [req.user.id, id]
+      );
+
+      await logEvent({
+        user_id:     req.user.id,
+        action:      'DOCUMENT_TYPE_ARCHIVED',
+        description: `Document type "${docType.name}" archived by ${req.user.email}`,
+        ip_address:  getIP(req),
+        status:      'warning',
+      });
+
+      return res.status(200).json({ success: true, message: `Document type "${docType.name}" archived.` });
+
+    } else {
+      await pool.execute(
+        'UPDATE document_types SET is_archived = 0, archived_at = NULL, archived_by = NULL WHERE id = ?',
+        [id]
+      );
+
+      await logEvent({
+        user_id:     req.user.id,
+        action:      'DOCUMENT_TYPE_RESTORED',
+        description: `Document type "${docType.name}" restored by ${req.user.email}`,
+        ip_address:  getIP(req),
+        status:      'success',
+      });
+
+      return res.status(200).json({ success: true, message: `Document type "${docType.name}" restored.` });
+    }
+
+  } catch (error) {
+    console.error('[ARCHIVE DOC TYPE ERROR]', error);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+export const deleteDocumentType = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await pool.execute('SELECT * FROM document_types WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Document type not found.' });
+    }
+
+    const typeName = rows[0].name;
+
+    if (!rows[0].is_archived) {
+      return res.status(400).json({
+        success: false,
+        message: 'Document type must be archived before it can be permanently deleted.',
+      });
+    }
+
+    await pool.execute('DELETE FROM document_types WHERE id = ?', [id]);
+
+    await logEvent({
+      user_id:     req.user.id,
+      action:      'DOCUMENT_TYPE_DELETED',
+      description: `Document type "${typeName}" permanently deleted by ${req.user.email}`,
+      ip_address:  getIP(req),
+      status:      'warning',
+    });
+
+    return res.status(200).json({ success: true, message: 'Document type permanently deleted.' });
+
+  } catch (error) {
+    console.error('[DELETE DOC TYPE ERROR]', error);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};

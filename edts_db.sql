@@ -194,3 +194,20 @@ CREATE TABLE document_recipients (
   CONSTRAINT fk_recv_user FOREIGN KEY (user_id)
     REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS document_types (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    is_archived TINYINT(1) NOT NULL DEFAULT 0,
+    archived_at DATETIME NULL DEFAULT NULL,
+    archived_by INT NULL DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB;
+
+-- Optional: Insert default document types
+INSERT INTO document_types (name) VALUES 
+('Memorandum'), 
+('Letter'), 
+('Resolution'), 
+('Special Order');

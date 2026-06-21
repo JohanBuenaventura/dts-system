@@ -13,7 +13,7 @@ const generateTrackingCode = () => {
 export const createDocument = async (req, res) => {
   try {
     const {
-      title, description, type, document_kind,
+      title, description, type, document_type,
       due_date, urgency, dest_department,
     } = req.body;
 
@@ -38,14 +38,15 @@ export const createDocument = async (req, res) => {
     }
 
     const [result] = await pool.execute(
+      // FIXED: document_kind changed to document_type
       `INSERT INTO documents
-        (tracking_code, title, description, type, document_kind,
+        (tracking_code, title, description, type, document_type,
          due_date, urgency, dest_department, status,
          current_location_dept, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Created', ?, ?)`,
       [
         tracking_code, title, description || null,
-        type, document_kind || 'General',
+        type, document_type || 'General', // FIXED: mapped to document_type variable
         due_date || null,
         urgency  || 'Normal',
         dest_department || null,
@@ -68,7 +69,7 @@ export const createDocument = async (req, res) => {
       data: {
         id: documentId, tracking_code, title,
         description: description || null,
-        type, document_kind: document_kind || 'General',
+        type, document_type: document_type || 'General',
         due_date: due_date || null,
         urgency:  urgency  || 'Normal',
         dest_department: dest_department || null,
@@ -98,13 +99,10 @@ export const getAllDocuments = async (req, res) => {
     const conditions = [];
     const params     = [];
 
-    // ── CHANGED SECTION: ROLE-BASED VISIBILITY ──
     if (req.user.role === 'Admin') {
-      // Admin sees docs currently in their dept OR created by someone in their dept
       conditions.push('(d.current_location_dept = ? OR u.department = ?)');
       params.push(req.user.department, req.user.department);
     } else if (req.user.role === 'Staff') {
-      // Staff sees docs currently in their dept OR docs they specifically created (sent)
       conditions.push('(d.current_location_dept = ? OR d.created_by = ?)');
       params.push(req.user.department, req.user.id);
     }
@@ -119,7 +117,6 @@ export const getAllDocuments = async (req, res) => {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    // Added JOIN users u so we can filter by u.department for Admins
     const [[{ total }]] = await pool.execute(
       `SELECT COUNT(*) as total FROM documents d JOIN users u ON d.created_by = u.id ${where}`, params
     );
@@ -185,8 +182,6 @@ export const getDocumentById = async (req, res) => {
 
     const doc = rows[0];
 
-    // ── CHANGED SECTION: VIEW PROTECTION ──
-    // Prevent users from guessing URLs to view documents outside their scope
     if (req.user.role === 'Admin') {
       if (doc.current_location_dept !== req.user.department && doc.created_by_dept !== req.user.department) {
         return res.status(403).json({ success: false, message: 'Access denied. Document is outside your department scope.' });
@@ -197,7 +192,6 @@ export const getDocumentById = async (req, res) => {
       }
     }
 
-    // Get recipients
     const [recipients] = await pool.execute(
       `SELECT dr.*, u.full_name AS user_name
        FROM document_recipients dr
@@ -252,7 +246,6 @@ export const getOverdueCount = async (req, res) => {
     const conditions = [`d.due_date < CURDATE()`, `d.status != 'Completed'`];
     const params     = [];
 
-    // ── CHANGED SECTION: OVERDUE VISIBILITY ──
     if (req.user.role === 'Admin') {
       conditions.push('(d.current_location_dept = ? OR u.department = ?)');
       params.push(req.user.department, req.user.department);
@@ -287,6 +280,22 @@ export const getActiveDepartments = async (req, res) => {
     return res.status(200).json({ success: true, data: rows });
   } catch (error) {
     console.error('[GET ACTIVE DEPTS ERROR]', error);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+// ─── GET ACTIVE DOCUMENT TYPES (For Dropdowns) ────────────────────────────────
+// NEW: We need this so the frontend Create Document page can populate the dropdown!
+export const getActiveDocumentTypes = async (req, res) => {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT id, name FROM document_types 
+      WHERE is_archived = 0 
+      ORDER BY name ASC
+    `);
+    return res.status(200).json({ success: true, data: rows });
+  } catch (error) {
+    console.error('[GET ACTIVE DOC TYPES ERROR]', error);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 };
