@@ -211,3 +211,6 @@ INSERT INTO document_types (name) VALUES
 ('Letter'), 
 ('Resolution'), 
 ('Special Order');
+
+ALTER TABLE documents 
+CHANGE document_kind document_type VARCHAR(100) NOT NULL DEFAULT 'General';
