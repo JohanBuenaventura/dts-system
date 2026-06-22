@@ -22,9 +22,9 @@ import {
   Activity
 } from 'lucide-react';
 
-// ── Chart Colors Optimized for Dark Mode ──
+// ── Chart Colors Optimized for Light Mode ──
 const STATUS_COLORS = {
-  'Created':    '#71717A', // zinc-500
+  'Created':    '#6B7280', // gray-500
   'In Transit': '#F59E0B', // amber-500
   'Received':   '#6366F1', // indigo-500
   'Completed':  '#10B981', // emerald-500
@@ -42,17 +42,17 @@ const BAR_COLORS = [
   '#EC4899', // pink-500
 ];
 
-// ── Custom Dark Mode Tooltip ──
+// ── Custom Light Mode Tooltip ──
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-xl shadow-2xl shadow-black/50 px-4 py-3">
-        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">{label}</p>
+      <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
         {payload.map((entry, i) => (
-          <p key={i} className="text-sm flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-            <span className="text-zinc-300">{entry.name}:</span>
-            <span className="font-bold text-zinc-100">{entry.value}</span>
+          <p key={i} className="text-sm flex items-center gap-2 mt-1 first:mt-0">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+            <span className="text-gray-600 font-medium">{entry.name}:</span>
+            <span className="font-bold text-gray-900">{entry.value}</span>
           </p>
         ))}
       </div>
@@ -61,16 +61,18 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-// ── Redesigned Glassmorphic Stat Card ──
+// ── Redesigned Light Stat Card ──
 const StatCard = ({ label, value, borderColor, icon: Icon, iconColor, sub }) => (
-  <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-5 shadow-lg shadow-black/20 flex items-center justify-between group transition-all hover:border-zinc-700/80 hover:bg-zinc-900/60">
-    <div>
-      <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">{label}</p>
-      <p className="text-3xl font-bold text-zinc-100 mt-1.5">{value ?? '—'}</p>
-      {sub && <p className="text-[10px] text-zinc-500 mt-1 font-medium">{sub}</p>}
-    </div>
-    <div className={`h-11 w-11 rounded-xl flex items-center justify-center border ${borderColor} bg-zinc-950/50 shadow-inner group-hover:scale-105 transition-transform duration-300`}>
-      <Icon className={`w-5 h-5 ${iconColor}`} />
+  <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 hover:border-indigo-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{label}</p>
+        <p className="text-3xl font-extrabold text-gray-900 mt-1.5">{value ?? '—'}</p>
+        {sub && <p className="text-[10px] text-gray-400 mt-1 font-medium">{sub}</p>}
+      </div>
+      <div className={`h-11 w-11 rounded-xl flex items-center justify-center border bg-gray-50 shadow-inner group-hover:scale-105 transition-transform duration-300 ${borderColor}`}>
+        <Icon className={`w-5 h-5 ${iconColor}`} />
+      </div>
     </div>
   </div>
 );
@@ -128,21 +130,21 @@ const AnalyticsPage = () => {
   }, []).sort((a, b) => b.count - a.count);
 
   if (loading) return (
-    <div className="min-h-screen bg-zinc-950 font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-gray-50 font-sans relative overflow-hidden">
       <Navbar />
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-zinc-400">
-        <div className="w-8 h-8 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-gray-500">
+        <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
         <p className="text-sm font-medium tracking-wide">Compiling analytics data...</p>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 font-sans selection:bg-indigo-500/30 selection:text-indigo-200 relative overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 font-sans selection:bg-indigo-500/30 selection:text-indigo-900 relative overflow-x-hidden">
       
       {/* Ambient glows */}
-      <div className="pointer-events-none fixed top-0 left-1/4 w-[600px] h-[600px] bg-indigo-500/5 blur-[150px] rounded-full" />
-      <div className="pointer-events-none fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full" />
+      <div className="pointer-events-none fixed top-0 left-1/4 w-[500px] h-[500px] bg-indigo-100 blur-[120px] rounded-full" />
+      <div className="pointer-events-none fixed bottom-0 right-1/4 w-[400px] h-[400px] bg-emerald-100/60 blur-[100px] rounded-full" />
 
       <Navbar />
 
@@ -150,12 +152,16 @@ const AnalyticsPage = () => {
 
         {/* ── Header ── */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-zinc-100 tracking-tight flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-indigo-400" />
-            Analytics Dashboard
-          </h2>
-          <p className="text-zinc-500 text-sm mt-1.5 flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-zinc-400" />
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center shadow-sm">
+              <BarChart3 className="w-5 h-5 text-indigo-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+              Analytics Dashboard
+            </h2>
+          </div>
+          <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-2 font-medium">
+            <Activity className="w-3.5 h-3.5 text-gray-400" />
             {isSuperAdmin
               ? 'System-wide document statistics and trends'
               : `Document statistics for ${user?.department}`}
@@ -165,39 +171,39 @@ const AnalyticsPage = () => {
         {/* ── SUPER ADMIN STAT CARDS ── */}
         {isSuperAdmin && stats && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard label="Total Documents" value={stats.documents.total}     borderColor="border-indigo-900/50"  iconColor="text-indigo-400"  icon={FolderKanban} sub="System-wide" />
-            <StatCard label="In Transit"      value={stats.documents.inTransit} borderColor="border-amber-900/50"   iconColor="text-amber-400"   icon={Truck} />
-            <StatCard label="Received"        value={stats.documents.received}  borderColor="border-blue-900/50"    iconColor="text-blue-400"    icon={Inbox} />
-            <StatCard label="Completed"       value={stats.documents.completed} borderColor="border-emerald-900/50" iconColor="text-emerald-400" icon={CheckCircle2} />
-            <StatCard label="Active Users"    value={stats.users}               borderColor="border-purple-900/50"  iconColor="text-purple-400"  icon={Users} sub="Registered accounts" />
-            <StatCard label="Departments"     value={stats.departments}         borderColor="border-cyan-900/50"    iconColor="text-cyan-400"    icon={Building2} />
-            <StatCard label="Created"         value={stats.documents.created}   borderColor="border-zinc-700"       iconColor="text-zinc-400"    icon={FileText} sub="Not yet routed" />
+            <StatCard label="Total Documents" value={stats.documents.total}     borderColor="border-indigo-200"  iconColor="text-indigo-600"  icon={FolderKanban} sub="System-wide" />
+            <StatCard label="In Transit"      value={stats.documents.inTransit} borderColor="border-amber-200"   iconColor="text-amber-500"   icon={Truck} />
+            <StatCard label="Received"        value={stats.documents.received}  borderColor="border-blue-200"    iconColor="text-blue-500"    icon={Inbox} />
+            <StatCard label="Completed"       value={stats.documents.completed} borderColor="border-emerald-200" iconColor="text-emerald-500" icon={CheckCircle2} />
+            <StatCard label="Active Users"    value={stats.users}               borderColor="border-purple-200"  iconColor="text-purple-500"  icon={Users} sub="Registered accounts" />
+            <StatCard label="Departments"     value={stats.departments}         borderColor="border-cyan-200"    iconColor="text-cyan-500"    icon={Building2} />
+            <StatCard label="Created"         value={stats.documents.created}   borderColor="border-gray-200"    iconColor="text-gray-500"    icon={FileText} sub="Not yet routed" />
           </div>
         )}
 
         {/* ── ADMIN STAT CARDS ── */}
         {isAdmin && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard label="Total Documents" value={localCounts.total}     borderColor="border-indigo-900/50"  iconColor="text-indigo-400"  icon={FolderKanban} sub="In your dept" />
-            <StatCard label="In Transit"      value={localCounts.inTransit} borderColor="border-amber-900/50"   iconColor="text-amber-400"   icon={Truck} />
-            <StatCard label="Received"        value={localCounts.received}  borderColor="border-blue-900/50"    iconColor="text-blue-400"    icon={Inbox} />
-            <StatCard label="Completed"       value={localCounts.completed} borderColor="border-emerald-900/50" iconColor="text-emerald-400" icon={CheckCircle2} />
+            <StatCard label="Total Documents" value={localCounts.total}     borderColor="border-indigo-200"  iconColor="text-indigo-600"  icon={FolderKanban} sub="In your dept" />
+            <StatCard label="In Transit"      value={localCounts.inTransit} borderColor="border-amber-200"   iconColor="text-amber-500"   icon={Truck} />
+            <StatCard label="Received"        value={localCounts.received}  borderColor="border-blue-200"    iconColor="text-blue-500"    icon={Inbox} />
+            <StatCard label="Completed"       value={localCounts.completed} borderColor="border-emerald-200" iconColor="text-emerald-500" icon={CheckCircle2} />
           </div>
         )}
 
-        {/* ── UNIFIED CHART GRID (FIXED LAYOUT BUG) ── */}
+        {/* ── UNIFIED CHART GRID ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* 1. Status Breakdown Pie (Visible to All) */}
-          <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-xl p-6">
-            <h3 className="font-semibold text-zinc-100 flex items-center gap-2 mb-1 text-sm">
-              <PieChartIcon className="w-4 h-4 text-indigo-400" /> Document Status Breakdown
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-1 text-sm">
+              <PieChartIcon className="w-4 h-4 text-indigo-600" /> Document Status Breakdown
             </h3>
-            <p className="text-xs text-zinc-500 mb-6">
+            <p className="text-xs text-gray-500 mb-6 font-medium">
               {isSuperAdmin ? 'All documents system-wide' : `Documents in ${user?.department}`}
             </p>
             {pieData.length === 0 ? (
-              <div className="flex items-center justify-center h-[260px] text-zinc-600 text-sm font-medium">
+              <div className="flex items-center justify-center h-[260px] text-gray-400 text-sm font-medium">
                 No documents yet
               </div>
             ) : (
@@ -217,7 +223,7 @@ const AnalyticsPage = () => {
                     ))}
                   </Pie>
                   <RechartsTooltip content={<CustomTooltip />} />
-                  <Legend formatter={v => <span className="text-xs font-medium text-zinc-400">{v}</span>} />
+                  <Legend formatter={v => <span className="text-xs font-bold text-gray-600">{v}</span>} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -225,27 +231,27 @@ const AnalyticsPage = () => {
 
           {/* 2. Monthly Volume Line (Super Admin Only) */}
           {isSuperAdmin && (
-            <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-xl p-6">
-              <h3 className="font-semibold text-zinc-100 flex items-center gap-2 mb-1 text-sm">
-                <TrendingUp className="w-4 h-4 text-emerald-400" /> Monthly Document Volume
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 hover:shadow-md transition-shadow">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-1 text-sm">
+                <TrendingUp className="w-4 h-4 text-emerald-500" /> Monthly Document Volume
               </h3>
-              <p className="text-xs text-zinc-500 mb-6">Last 6 months — system-wide</p>
+              <p className="text-xs text-gray-500 mb-6 font-medium">Last 6 months — system-wide</p>
               {!stats?.monthly || stats.monthly.length === 0 ? (
-                <div className="flex items-center justify-center h-[260px] text-zinc-600 text-sm font-medium">
+                <div className="flex items-center justify-center h-[260px] text-gray-400 text-sm font-medium">
                   No data yet
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={stats.monthly} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272A" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#71717A' }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#71717A' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 600 }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 600 }} tickLine={false} axisLine={false} allowDecimals={false} />
                     <RechartsTooltip content={<CustomTooltip />} />
                     <Line
                       type="monotone" dataKey="count" name="Documents"
                       stroke="#6366F1" strokeWidth={3}
-                      dot={{ fill: '#18181B', stroke: '#6366F1', strokeWidth: 2, r: 4 }} 
-                      activeDot={{ r: 6, fill: '#6366F1', stroke: '#A5B4FC' }}
+                      dot={{ fill: '#FFFFFF', stroke: '#6366F1', strokeWidth: 2, r: 4 }} 
+                      activeDot={{ r: 6, fill: '#6366F1', stroke: '#C7D2FE' }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -255,13 +261,13 @@ const AnalyticsPage = () => {
 
           {/* 3. Documents per Department (Super Admin Only) */}
           {isSuperAdmin && (
-            <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-xl p-6">
-              <h3 className="font-semibold text-zinc-100 flex items-center gap-2 mb-1 text-sm">
-                <Building2 className="w-4 h-4 text-cyan-400" /> Documents per Department
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 hover:shadow-md transition-shadow">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-1 text-sm">
+                <Building2 className="w-4 h-4 text-cyan-500" /> Documents per Department
               </h3>
-              <p className="text-xs text-zinc-500 mb-6">Current document location distribution</p>
+              <p className="text-xs text-gray-500 mb-6 font-medium">Current document location distribution</p>
               {!stats?.perDepartment || stats.perDepartment.length === 0 ? (
-                <div className="flex items-center justify-center h-[260px] text-zinc-600 text-sm font-medium">
+                <div className="flex items-center justify-center h-[260px] text-gray-400 text-sm font-medium">
                   No data yet
                 </div>
               ) : (
@@ -270,18 +276,18 @@ const AnalyticsPage = () => {
                     data={stats.perDepartment}
                     margin={{ top: 5, right: 10, left: -20, bottom: 50 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272A" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
                     <XAxis
                       dataKey="department"
-                      tick={{ fontSize: 10, fill: '#71717A' }}
+                      tick={{ fontSize: 10, fill: '#6B7280', fontWeight: 600 }}
                       tickLine={false}
                       axisLine={false}
                       angle={-35}
                       textAnchor="end"
                       interval={0}
                     />
-                    <YAxis tick={{ fontSize: 11, fill: '#71717A' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#27272A', opacity: 0.4 }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 600 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#F3F4F6', opacity: 0.5 }} />
                     <Bar dataKey="count" name="Documents" radius={[4, 4, 0, 0]}>
                       {stats.perDepartment.map((_, i) => (
                         <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
@@ -294,15 +300,15 @@ const AnalyticsPage = () => {
           )}
 
           {/* 4. Documents by Type (Visible to All) */}
-          <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-xl p-6">
-            <h3 className="font-semibold text-zinc-100 flex items-center gap-2 mb-1 text-sm">
-              <Layers className="w-4 h-4 text-purple-400" /> Documents by Type
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-1 text-sm">
+              <Layers className="w-4 h-4 text-purple-500" /> Documents by Type
             </h3>
-            <p className="text-xs text-zinc-500 mb-6">
+            <p className="text-xs text-gray-500 mb-6 font-medium">
               {isSuperAdmin ? 'System-wide type breakdown' : `Breakdown in ${user?.department}`}
             </p>
             {(isSuperAdmin ? stats?.byType : adminByType)?.length === 0 ? (
-              <div className="flex items-center justify-center h-[260px] text-zinc-600 text-sm font-medium">
+              <div className="flex items-center justify-center h-[260px] text-gray-400 text-sm font-medium">
                 No data yet
               </div>
             ) : (
@@ -312,10 +318,10 @@ const AnalyticsPage = () => {
                   layout="vertical"
                   margin={{ top: 5, right: 20, left: 70, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272A" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: '#71717A' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="type" tick={{ fontSize: 11, fill: '#A1A1AA' }} tickLine={false} axisLine={false} width={80} />
-                  <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#27272A', opacity: 0.4 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 600 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <YAxis type="category" dataKey="type" tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 600 }} tickLine={false} axisLine={false} width={80} />
+                  <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#F3F4F6', opacity: 0.5 }} />
                   <Bar dataKey="count" name="Documents" radius={[0, 4, 4, 0]} barSize={24}>
                     {(isSuperAdmin ? stats?.byType : adminByType)?.map((_, i) => (
                       <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />

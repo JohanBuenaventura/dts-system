@@ -5,6 +5,12 @@ import api                             from '../api/axios';
 import Navbar                          from '../components/Navbar';
 import { useAuth }                     from '../context/AuthContext';
 import { exportAuditTrailPDF, exportAuditTrailCSV } from '../utils/exportUtils';
+import {
+  ArrowLeft, ArrowRight, Truck, Inbox, CheckCircle2, Paperclip, Trash2, 
+  Download, Upload, FileText, FileSpreadsheet, Image as FileImage, File, 
+  ClipboardList, CheckCheck, Clock, MapPin, User, Calendar, AlignLeft, 
+  AlertTriangle, Flame, Eye, X
+} from 'lucide-react';
 
 const formatFileSize = (bytes) => {
   if (bytes < 1024)         return `${bytes} B`;
@@ -12,46 +18,72 @@ const formatFileSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const fileIcon = (type) => {
-  if (type === 'application/pdf')  return '📄';
-  if (type?.includes('word'))      return '📝';
-  if (type?.includes('sheet'))     return '📊';
-  if (type?.startsWith('image/'))  return '🖼️';
-  return '📎';
+const FileIcon = ({ type, className = 'w-4 h-4' }) => {
+  if (type === 'application/pdf') return <FileText className={`${className} text-rose-500`} />;
+  if (type?.includes('word'))     return <FileText className={`${className} text-blue-500`} />;
+  if (type?.includes('sheet'))    return <FileSpreadsheet className={`${className} text-emerald-500`} />;
+  if (type?.startsWith('image/')) return <FileImage className={`${className} text-purple-500`} />;
+  return <File className={`${className} text-gray-400`} />;
 };
 
-const statusBadge = (status) => ({
-  'Created':    'bg-gray-100 text-gray-700',
-  'In Transit': 'bg-yellow-100 text-yellow-800',
-  'Received':   'bg-blue-100 text-blue-800',
-  'Completed':  'bg-green-100 text-green-800',
-}[status] || 'bg-gray-100 text-gray-600');
+const statusBadge = (status) => {
+  const map = {
+    'Created':    'bg-gray-50 text-gray-700 border-gray-200',
+    'In Transit': 'bg-amber-50 text-amber-700 border-amber-200',
+    'Received':   'bg-indigo-50 text-indigo-700 border-indigo-200',
+    'Completed':  'bg-emerald-50 text-emerald-700 border-emerald-200',
+  };
+  return map[status] || 'bg-gray-50 text-gray-600 border-gray-200';
+};
 
 const urgencyBadge = (urgency) => ({
-  'Normal':        'bg-gray-100 text-gray-600',
-  'Urgent':        'bg-yellow-100 text-yellow-700',
-  'Highly Urgent': 'bg-red-100 text-red-700',
-}[urgency] || 'bg-gray-100 text-gray-600');
+  'Normal':        null,
+  'Urgent':        <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full shadow-sm"><AlertTriangle className="w-3 h-3"/> Urgent</span>,
+  'Highly Urgent': <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full shadow-sm"><Flame className="w-3 h-3"/> Highly Urgent</span>,
+}[urgency] || null);
 
 const dueBadge = (due_status, due_date) => {
   if (!due_date) return null;
-  if (due_status === 'overdue')  return <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">⚠️ Overdue</span>;
-  if (due_status === 'due_soon') return <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">⏰ Due Soon</span>;
+  if (due_status === 'overdue')  return <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full shadow-sm"><AlertTriangle className="w-3 h-3"/> Overdue</span>;
+  if (due_status === 'due_soon') return <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full shadow-sm"><Clock className="w-3 h-3"/> Due Soon</span>;
   return null;
 };
+
+// Timeline dot mapping based on action
+const actionDotColor = (action) => {
+  if (!action) return 'bg-gray-400 border-gray-200';
+  if (action.includes('Created')) return 'bg-gray-400 border-gray-200';
+  if (action.includes('Forwarded')) return 'bg-amber-400 border-amber-200';
+  if (action.includes('Received')) return 'bg-indigo-400 border-indigo-200';
+  if (action.includes('Completed')) return 'bg-emerald-400 border-emerald-200';
+  if (action.includes('Rejected')) return 'bg-red-400 border-red-200';
+  return 'bg-blue-400 border-blue-200';
+};
+
+const DetailRow = ({ icon: Icon, label, value, mono = false }) => (
+  <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
+    <div className="w-8 h-8 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+      <Icon className="w-4 h-4 text-gray-500" />
+    </div>
+    <div className="min-w-0">
+      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">{label}</p>
+      <p className={`text-sm text-gray-900 font-medium break-words leading-relaxed ${mono ? 'font-mono text-indigo-600 font-bold tracking-tight' : ''}`}>{value}</p>
+    </div>
+  </div>
+);
 
 const DocumentDetailPage = () => {
   const { id }       = useParams();
   const { user }     = useAuth();
   const fileInputRef = useRef(null);
 
-  const [doc,         setDoc]         = useState(null);
-  const [history,     setHistory]     = useState([]);
-  const [attachments, setAttachments] = useState([]);
-  const [deptUsers,   setDeptUsers]   = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [message,     setMessage]     = useState({ type: '', text: '' });
+  const [doc,           setDoc]           = useState(null);
+  const [history,       setHistory]       = useState([]);
+  const [attachments,   setAttachments]   = useState([]);
+  const [deptUsers,     setDeptUsers]     = useState([]);
+  const [departments,   setDepartments]   = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [message,       setMessage]       = useState({ type: '', text: '' });
 
   // Forward form state
   const [selectedDepts,  setSelectedDepts]  = useState([]);
@@ -76,12 +108,12 @@ const DocumentDetailPage = () => {
         api.get(`/documents/${id}`),
         api.get(`/routing/${id}/history`),
         api.get(`/documents/${id}/attachments`),
-        api.get('/documents/active-departments'), // UPDATED ENDPOINT
+        api.get('/documents/active-departments'), 
       ]);
       setDoc(docRes.data.data);
       setHistory(histRes.data.history);
       setAttachments(attachRes.data.data);
-      setDepartments(deptRes.data.data); // Removed the local filter, backend handles it
+      setDepartments(deptRes.data.data); 
     } catch (err) {
       console.error(err);
     } finally {
@@ -91,7 +123,6 @@ const DocumentDetailPage = () => {
 
   useEffect(() => { fetchData(); }, [id]);
 
-  // Load users when a department is selected for specific-user forwarding
   useEffect(() => {
     if (selectedDepts.length === 1) {
       api.get('/routing/users/by-department', { params: { department: selectedDepts[0] } })
@@ -114,15 +145,14 @@ const DocumentDetailPage = () => {
   const canReceive   = canAct && doc?.status === 'In Transit' && isInMyDept;
   const canForward   = canAct && doc?.status !== 'Completed';
   const canReject    = canAct && doc?.status === 'In Transit' && isInMyDept;
-  const viewerOnly   = isAdmin; // Admin is always view-only
+  const viewerOnly   = isAdmin; 
 
-  // Cannot complete if you are the last forwarder and doc is still In Transit
   const lastForwarderId = history.filter(h => h.action_taken.startsWith('Forwarded')).slice(-1)[0]?.performed_by;
   const canComplete  = canAct &&
     (doc?.status === 'Received' || doc?.status === 'Created') &&
     !viewerOnly;
 
-  // ── Forward
+  // ── Handlers
   const handleForward = async () => {
     if (selectedDepts.length === 0) return showMsg('error', 'Select at least one department.');
     setActionLoading(true);
@@ -135,61 +165,42 @@ const DocumentDetailPage = () => {
       showMsg('success', `Forwarded to ${selectedDepts.join(', ')}.`);
       setSelectedDepts([]); setToUserId(''); setForwardRemarks('');
       fetchData();
-    } catch (err) {
-      showMsg('error', err.response?.data?.message || 'Forward failed.');
-    } finally {
-      setActionLoading(false);
-    }
+    } catch (err) { showMsg('error', err.response?.data?.message || 'Forward failed.'); } 
+    finally { setActionLoading(false); }
   };
 
-  // ── Receive
   const handleReceive = async () => {
     setActionLoading(true);
     try {
       await api.post(`/routing/${id}/receive`, { remarks: receiveRemarks || null });
-      showMsg('success', 'Document received.');
-      setReceiveRemarks('');
-      fetchData();
-    } catch (err) {
-      showMsg('error', err.response?.data?.message || 'Receive failed.');
-    } finally {
-      setActionLoading(false);
-    }
+      showMsg('success', 'Document received successfully.');
+      setReceiveRemarks(''); fetchData();
+    } catch (err) { showMsg('error', err.response?.data?.message || 'Receive failed.'); } 
+    finally { setActionLoading(false); }
   };
 
-  // ── Reject
   const handleReject = async () => {
     if (!rejectRemarks.trim()) return showMsg('error', 'Remarks are required to reject.');
     setActionLoading(true);
     try {
       await api.post(`/routing/${id}/reject`, { remarks: rejectRemarks });
       showMsg('success', 'Document rejected and returned.');
-      setRejectRemarks(''); setShowReject(false);
-      fetchData();
-    } catch (err) {
-      showMsg('error', err.response?.data?.message || 'Reject failed.');
-    } finally {
-      setActionLoading(false);
-    }
+      setRejectRemarks(''); setShowReject(false); fetchData();
+    } catch (err) { showMsg('error', err.response?.data?.message || 'Reject failed.'); } 
+    finally { setActionLoading(false); }
   };
 
-  // ── Complete
   const handleComplete = async () => {
     if (!window.confirm('Mark as Completed? This cannot be undone.')) return;
     setActionLoading(true);
     try {
       await api.post(`/routing/${id}/complete`, { remarks: completeRemarks || null });
-      showMsg('success', 'Document completed.');
-      setCompleteRemarks('');
-      fetchData();
-    } catch (err) {
-      showMsg('error', err.response?.data?.message || 'Complete failed.');
-    } finally {
-      setActionLoading(false);
-    }
+      showMsg('success', 'Document completed successfully.');
+      setCompleteRemarks(''); fetchData();
+    } catch (err) { showMsg('error', err.response?.data?.message || 'Complete failed.'); } 
+    finally { setActionLoading(false); }
   };
 
-  // ── File upload
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return showMsg('error', 'Select files first.');
     setUploadLoading(true);
@@ -200,28 +211,20 @@ const DocumentDetailPage = () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       showMsg('success', `${selectedFiles.length} file(s) uploaded.`);
-      setSelectedFiles([]);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setSelectedFiles([]); if (fileInputRef.current) fileInputRef.current.value = '';
       fetchData();
-    } catch (err) {
-      showMsg('error', err.response?.data?.message || 'Upload failed.');
-    } finally {
-      setUploadLoading(false);
-    }
+    } catch (err) { showMsg('error', err.response?.data?.message || 'Upload failed.'); } 
+    finally { setUploadLoading(false); }
   };
 
   const handleDeleteAttachment = async (attachmentId, fileName) => {
     if (!window.confirm(`Delete "${fileName}"?`)) return;
     try {
       await api.delete(`/documents/attachments/${attachmentId}`);
-      showMsg('success', 'Attachment deleted.');
-      fetchData();
-    } catch (err) {
-      showMsg('error', err.response?.data?.message || 'Delete failed.');
-    }
+      showMsg('success', 'Attachment deleted.'); fetchData();
+    } catch (err) { showMsg('error', err.response?.data?.message || 'Delete failed.'); }
   };
 
-  // ── Dept checkbox toggle
   const toggleDept = (deptName) => {
     setSelectedDepts(prev =>
       prev.includes(deptName)
@@ -231,10 +234,11 @@ const DocumentDetailPage = () => {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 font-sans relative overflow-hidden">
       <Navbar />
-      <div className="flex items-center justify-center h-64">
-        <p className="text-gray-400">Loading document...</p>
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-gray-500">
+        <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
+        <p className="text-sm font-medium tracking-wide">Compiling file ledger matrix records...</p>
       </div>
     </div>
   );
@@ -242,132 +246,111 @@ const DocumentDetailPage = () => {
   if (!doc) return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="flex items-center justify-center h-64">
-        <p className="text-red-400">Document not found.</p>
+      <div className="flex flex-col items-center justify-center h-[50vh] gap-3">
+        <FileText className="w-10 h-10 text-gray-300" />
+        <p className="text-gray-500 text-xs font-medium">Specified record parameter matches no indexed entities.</p>
+        <Link to="/documents" className="text-indigo-600 hover:text-indigo-700 text-xs font-bold border border-indigo-200 bg-indigo-50 px-4 py-2 rounded-xl shadow-sm transition-colors mt-2">← Back to Ledger</Link>
       </div>
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all placeholder-gray-400";
 
-        {/* Breadcrumb */}
-        <div className="text-sm text-gray-400 mb-6">
-          <Link to="/documents" className="hover:text-blue-600">Documents</Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-600 font-mono">{doc.tracking_code}</span>
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans selection:bg-indigo-500/30 selection:text-indigo-900 relative overflow-x-hidden">
+      
+      {/* Ambient glows */}
+      <div className="pointer-events-none fixed top-0 left-1/4 w-[500px] h-[500px] bg-indigo-100 blur-[120px] rounded-full" />
+      <div className="pointer-events-none fixed bottom-0 right-1/4 w-[400px] h-[400px] bg-emerald-100/60 blur-[100px] rounded-full" />
+
+      <Navbar />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+
+        {/* Dynamic Breadcrumbs */}
+        <div className="mb-6 group">
+          <Link to="/documents" className="inline-flex items-center text-xs font-bold text-gray-500 hover:text-indigo-600 transition-colors">
+            <ArrowLeft className="w-4 h-4 mr-1.5 transition-transform group-hover:-translate-x-0.5" />
+            Documents Ledger
+            <span className="text-gray-300 mx-2 select-none">/</span>
+            <span className="font-mono text-gray-600 group-hover:text-indigo-600 transition-colors">{doc.tracking_code}</span>
+          </Link>
         </div>
 
         {/* Viewer Only Banner */}
         {viewerOnly && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 mb-5 flex items-center gap-2">
-            <span className="text-blue-500 text-lg">👁️</span>
-            <p className="text-blue-700 text-sm font-medium">
-              You are viewing this document in read-only mode. Admins cannot perform routing actions.
+          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-3 mb-6 flex items-center gap-3 shadow-sm animate-in fade-in duration-300">
+            <Eye className="w-5 h-5 text-indigo-500" />
+            <p className="text-indigo-700 text-sm font-semibold">
+              You are viewing this document in read-only mode. System administrators cannot perform pipeline routing actions.
             </p>
           </div>
         )}
 
-        {/* Message */}
+        {/* Message Banner */}
         {message.text && (
-          <div className={`px-4 py-3 rounded-lg mb-5 text-sm font-medium
-            ${message.type === 'success'
-              ? 'bg-green-50 border border-green-200 text-green-700'
-              : 'bg-red-50 border border-red-200 text-red-600'}`}>
+          <div className={`px-5 py-3.5 rounded-xl mb-6 text-sm font-bold border flex items-center gap-2.5 shadow-sm animate-in fade-in slide-in-from-top-1
+            ${message.type === 'success' 
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+              : 'bg-red-50 border-red-200 text-red-600'}`}>
+            {message.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
             {message.text}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
-          {/* LEFT */}
-          <div className="lg:col-span-1 space-y-5">
+          {/* ── LEFT COLUMN ── */}
+          <div className="lg:col-span-1 space-y-6">
 
-            {/* Document Info */}
-            <div className="bg-white rounded-xl shadow p-6">
-              <div className="flex items-start justify-between mb-4 gap-2">
-                <h2 className="text-lg font-bold text-gray-800 leading-tight">{doc.title}</h2>
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${statusBadge(doc.status)}`}>
+            {/* Document Meta Info */}
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl shadow-gray-200/50">
+              <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-start justify-between gap-4">
+                <h2 className="font-bold text-gray-900 text-sm tracking-tight leading-snug truncate" title={doc.title}>{doc.title}</h2>
+                <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider whitespace-nowrap flex-shrink-0 border ${statusBadge(doc.status)}`}>
                   {doc.status}
                 </span>
               </div>
+              <div className="px-5 py-3">
+                
+                {/* Due/Urgency Flags */}
+                {(doc.urgency !== 'Normal' || doc.due_date) && (
+                  <div className="flex flex-wrap gap-2 mb-2 pt-1 pb-3 border-b border-gray-100">
+                    {urgencyBadge(doc.urgency)}
+                    {dueBadge(doc.due_status, doc.due_date)}
+                  </div>
+                )}
 
-              {/* Urgency + Due badges */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {doc.urgency !== 'Normal' && (
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${urgencyBadge(doc.urgency)}`}>
-                    🔥 {doc.urgency}
-                  </span>
-                )}
-                {dueBadge(doc.due_status, doc.due_date)}
-              </div>
-
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="text-gray-400 text-xs uppercase tracking-wide">Tracking Code</span>
-                  <p className="font-mono text-blue-700 font-medium">{doc.tracking_code}</p>
-                </div>
-                <div>
-                  <span className="text-gray-400 text-xs uppercase tracking-wide">Document Kind</span>
-                  <p className="text-gray-700">{doc.document_kind || doc.type}</p>
-                </div>
-                <div>
-                  <span className="text-gray-400 text-xs uppercase tracking-wide">Department Type</span>
-                  <p className="text-gray-700">{doc.type}</p>
-                </div>
-                {doc.dest_department && (
-                  <div>
-                    <span className="text-gray-400 text-xs uppercase tracking-wide">Destination</span>
-                    <p className="text-gray-700">{doc.dest_department}</p>
-                  </div>
-                )}
-                <div>
-                  <span className="text-gray-400 text-xs uppercase tracking-wide">Current Location</span>
-                  <p className="text-gray-700 font-medium">{doc.current_location_dept}</p>
-                </div>
-                {doc.due_date && (
-                  <div>
-                    <span className="text-gray-400 text-xs uppercase tracking-wide">Due Date</span>
-                    <p className={`font-medium ${doc.due_status === 'overdue' ? 'text-red-600' : doc.due_status === 'due_soon' ? 'text-yellow-600' : 'text-gray-700'}`}>
-                      {new Date(doc.due_date).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <span className="text-gray-400 text-xs uppercase tracking-wide">Created By</span>
-                  <p className="text-gray-700">{doc.created_by_name}</p>
-                </div>
-                <div>
-                  <span className="text-gray-400 text-xs uppercase tracking-wide">Created At</span>
-                  <p className="text-gray-700">{new Date(doc.created_at).toLocaleString()}</p>
-                </div>
-                {doc.description && (
-                  <div>
-                    <span className="text-gray-400 text-xs uppercase tracking-wide">Description</span>
-                    <p className="text-gray-600 mt-1">{doc.description}</p>
-                  </div>
-                )}
+                <DetailRow icon={ClipboardList} label="Tracking Hash" value={doc.tracking_code} mono />
+                <DetailRow icon={FileText} label="Classification" value={doc.document_kind || doc.type} />
+                <DetailRow icon={MapPin} label="Current Location" value={doc.current_location_dept} />
+                {doc.dest_department && <DetailRow icon={Truck} label="Destination" value={doc.dest_department} />}
+                {doc.due_date && <DetailRow icon={Calendar} label="Due Date" value={new Date(doc.due_date).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })} />}
+                <DetailRow icon={User} label="Originator Agent" value={doc.created_by_name} />
+                <DetailRow icon={Clock} label="Logs Registration" value={new Date(doc.created_at).toLocaleString()} />
+                {doc.description && <DetailRow icon={AlignLeft} label="Scope Context Remarks" value={doc.description} />}
               </div>
             </div>
 
-            {/* Recipients */}
+            {/* Recipients Section */}
             {doc.recipients?.length > 0 && (
-              <div className="bg-white rounded-xl shadow p-6">
-                <h3 className="font-semibold text-gray-800 mb-3">📬 Recipients</h3>
-                <div className="space-y-2">
+              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl shadow-gray-200/50">
+                <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+                  <Inbox className="w-4 h-4 text-gray-500" />
+                  <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider">Recipients Matrix</h3>
+                </div>
+                <div className="p-4 space-y-3">
                   {doc.recipients.map(r => (
-                    <div key={r.id} className="flex items-center justify-between text-sm">
-                      <div>
-                        <p className="font-medium text-gray-700">{r.department}</p>
-                        {r.user_name && <p className="text-xs text-gray-400">→ {r.user_name}</p>}
-                        {r.remarks && <p className="text-xs text-gray-400 italic mt-0.5">"{r.remarks}"</p>}
+                    <div key={r.id} className="flex items-center justify-between gap-4 p-3 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
+                      <div className="min-w-0">
+                        <p className="font-bold text-gray-900 text-sm truncate">{r.department}</p>
+                        {r.user_name && <p className="text-xs text-gray-500 mt-0.5 truncate flex items-center gap-1"><ArrowRight className="w-3 h-3"/> {r.user_name}</p>}
+                        {r.remarks && <p className="text-[11px] text-gray-400 italic mt-1.5 border-l-2 border-gray-200 pl-2">"{r.remarks}"</p>}
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium
-                        ${r.status === 'Received' ? 'bg-green-100 text-green-700'
-                          : r.status === 'Rejected' ? 'bg-red-100 text-red-600'
-                          : 'bg-yellow-100 text-yellow-700'}`}>
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex-shrink-0 border
+                        ${r.status === 'Received' ? 'bg-green-50 text-green-700 border-green-200'
+                          : r.status === 'Rejected' ? 'bg-red-50 text-red-600 border-red-200'
+                          : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
                         {r.status}
                       </span>
                     </div>
@@ -376,280 +359,295 @@ const DocumentDetailPage = () => {
               </div>
             )}
 
-            {/* Routing Actions — Staff and Super Admin only */}
+            {/* Workflow Directives Section */}
             {!viewerOnly && doc.status !== 'Completed' && (
-              <div className="bg-white rounded-xl shadow p-6">
-                <h3 className="font-semibold text-gray-800 mb-4">Routing Actions</h3>
-
-                {/* Receive */}
-                {canReceive && (
-                  <div className="mb-4 pb-4 border-b border-gray-100">
-                    <p className="text-xs text-gray-500 mb-2">This document is in your department.</p>
-                    <textarea value={receiveRemarks}
-                      onChange={e => setReceiveRemarks(e.target.value)}
-                      rows={2} placeholder="Optional remarks..."
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <button onClick={handleReceive} disabled={actionLoading}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-60">
-                      📥 Receive Document
-                    </button>
-                  </div>
-                )}
-
-                {/* Forward — multi-department checkboxes */}
-                {canForward && (
-                  <div className="mb-4 pb-4 border-b border-gray-100">
-                    <p className="text-xs font-medium text-gray-500 mb-2">Forward to Department(s)</p>
-
-                    <div className="space-y-1 max-h-44 overflow-y-auto border border-gray-200 rounded-lg p-3 mb-3">
-                      {departments
-                        .filter(d => d.name !== doc.current_location_dept && d.name !== 'System Administrator')
-                        .map(d => (
-                          <label key={d.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
-                            <input type="checkbox"
-                              checked={selectedDepts.includes(d.name)}
-                              onChange={() => toggleDept(d.name)}
-                              className="rounded border-gray-300 text-blue-600" />
-                            <span className="text-gray-700">{d.name}</span>
-                          </label>
-                        ))}
-                    </div>
-
-                    {/* Specific user (only when 1 dept selected) */}
-                    {selectedDepts.length === 1 && deptUsers.length > 0 && (
-                      <div className="mb-3">
-                        <p className="text-xs text-gray-400 mb-1">Forward to specific user (optional)</p>
-                        <select value={toUserId} onChange={e => setToUserId(e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                          <option value="">— Any user in {selectedDepts[0]} —</option>
-                          {deptUsers.map(u => (
-                            <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    <textarea value={forwardRemarks}
-                      onChange={e => setForwardRemarks(e.target.value)}
-                      rows={2} placeholder="Optional remarks..."
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
-
-                    <button onClick={handleForward}
-                      disabled={actionLoading || selectedDepts.length === 0}
-                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-60">
-                      🚚 Forward to {selectedDepts.length > 0 ? `${selectedDepts.length} Department(s)` : '...'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Reject */}
-                {canReject && (
-                  <div className="mb-4 pb-4 border-b border-gray-100">
-                    {!showReject ? (
-                      <button onClick={() => setShowReject(true)}
-                        className="w-full bg-red-50 hover:bg-red-100 text-red-600 py-2.5 rounded-lg text-sm font-medium transition border border-red-200">
-                        ❌ Reject Document
+              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl shadow-gray-200/50">
+                <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-indigo-500" />
+                  <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider">Pipeline Controllers</h3>
+                </div>
+                <div className="p-5 space-y-5">
+                  
+                  {/* Receive Block */}
+                  {canReceive && (
+                    <div className="pb-5 border-b border-gray-100 last:border-0">
+                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Incoming Sector Checkpoint</p>
+                      <textarea value={receiveRemarks}
+                        onChange={e => setReceiveRemarks(e.target.value)}
+                        rows={2} placeholder="Append context details regarding validation..."
+                        className={`${inputClass} resize-none mb-3`} />
+                      <button onClick={handleReceive} disabled={actionLoading} 
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-bold shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+                        <Inbox className="w-4 h-4" /> Checked In Terminal
                       </button>
-                    ) : (
-                      <div>
-                        <p className="text-xs text-red-500 font-medium mb-1">Remarks are required to reject</p>
-                        <textarea value={rejectRemarks}
-                          onChange={e => setRejectRemarks(e.target.value)}
-                          rows={3} placeholder="State reason for rejection..."
-                          className="w-full border border-red-300 rounded-lg px-3 py-2 text-sm mb-2 resize-none focus:outline-none focus:ring-2 focus:ring-red-400" />
-                        <div className="flex gap-2">
-                          <button onClick={handleReject} disabled={actionLoading || !rejectRemarks.trim()}
-                            className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm font-medium transition disabled:opacity-60">
-                            Confirm Reject
-                          </button>
-                          <button onClick={() => { setShowReject(false); setRejectRemarks(''); }}
-                            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 py-2 rounded-lg text-sm font-medium transition">
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
 
-                {/* Complete */}
-                {canComplete && (
-                  <div>
-                    <textarea value={completeRemarks}
-                      onChange={e => setCompleteRemarks(e.target.value)}
-                      rows={2} placeholder="Optional completion remarks..."
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 resize-none focus:outline-none focus:ring-2 focus:ring-green-500" />
-                    <button onClick={handleComplete} disabled={actionLoading}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-60">
-                      ✅ Mark as Completed
-                    </button>
-                  </div>
-                )}
+                  {/* Forward Block */}
+                  {canForward && (
+                    <div className="pb-5 border-b border-gray-100 last:border-0">
+                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Forward Target Nodes</p>
+                      
+                      <div className="space-y-1.5 max-h-44 overflow-y-auto border border-gray-200 rounded-xl p-3 mb-3 bg-gray-50 shadow-inner">
+                        {departments
+                          .filter(d => d.name !== doc.current_location_dept && d.name !== 'System Administrator')
+                          .map(d => (
+                            <label key={d.id} className="flex items-center gap-2.5 text-sm cursor-pointer hover:bg-white px-2 py-1.5 rounded-lg border border-transparent hover:border-gray-200 transition-colors">
+                              <input type="checkbox"
+                                checked={selectedDepts.includes(d.name)}
+                                onChange={() => toggleDept(d.name)}
+                                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                              <span className="text-gray-700 font-medium">{d.name}</span>
+                            </label>
+                          ))}
+                      </div>
+
+                      {selectedDepts.length === 1 && deptUsers.length > 0 && (
+                        <div className="mb-3">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Bind to Specific Operator</label>
+                          <select value={toUserId} onChange={e => setToUserId(e.target.value)} className={inputClass}>
+                            <option value="">— Unassigned (Any operator in {selectedDepts[0]}) —</option>
+                            {deptUsers.map(u => (
+                              <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <textarea value={forwardRemarks}
+                        onChange={e => setForwardRemarks(e.target.value)}
+                        rows={2} placeholder="Trace context payload..."
+                        className={`${inputClass} resize-none mb-3`} />
+
+                      <button onClick={handleForward}
+                        disabled={actionLoading || selectedDepts.length === 0}
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl text-sm font-bold shadow-md shadow-amber-200 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2">
+                        <Truck className="w-4 h-4" /> 
+                        Forward Pipeline {selectedDepts.length > 0 ? `(${selectedDepts.length})` : ''}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Reject Block */}
+                  {canReject && (
+                    <div className="pb-5 border-b border-gray-100 last:border-0">
+                      {!showReject ? (
+                        <button onClick={() => setShowReject(true)}
+                          className="w-full bg-white hover:bg-red-50 text-red-600 border border-red-200 hover:border-red-300 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                          <X className="w-4 h-4" /> Reject Payload
+                        </button>
+                      ) : (
+                        <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                          <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> Warning: Provide Rejection Context</p>
+                          <textarea value={rejectRemarks}
+                            onChange={e => setRejectRemarks(e.target.value)}
+                            rows={3} placeholder="State verification failure reason..."
+                            className="w-full border border-red-200 rounded-xl px-3 py-2 text-sm mb-3 resize-none focus:outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-400 placeholder-red-300 bg-white" />
+                          <div className="flex gap-2">
+                            <button onClick={handleReject} disabled={actionLoading || !rejectRemarks.trim()}
+                              className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-xs font-bold transition disabled:opacity-50 shadow-sm">
+                              Confirm Purge
+                            </button>
+                            <button onClick={() => { setShowReject(false); setRejectRemarks(''); }}
+                              className="flex-1 bg-white hover:bg-gray-100 border border-gray-200 text-gray-600 py-2 rounded-lg text-xs font-bold transition">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Complete Block */}
+                  {canComplete && (
+                    <div className="pb-0">
+                      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Seal State Matrix</p>
+                      <textarea value={completeRemarks}
+                        onChange={e => setCompleteRemarks(e.target.value)}
+                        rows={2} placeholder="Optional conclusion remarks..."
+                        className={`${inputClass} resize-none mb-3`} />
+                      <button onClick={handleComplete} disabled={actionLoading}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-sm font-bold shadow-md shadow-emerald-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+                        <CheckCheck className="w-4 h-4" /> Seal Complete Concluded
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* Completed state */}
+            {/* Completed Static State */}
             {doc.status === 'Completed' && (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
-                <div className="text-3xl mb-2">✅</div>
-                <p className="text-green-700 font-semibold text-sm">Document Completed</p>
-                <p className="text-green-500 text-xs mt-1">No further actions available.</p>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center shadow-sm">
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-emerald-100 mx-auto mb-3 shadow-sm">
+                  <CheckCheck className="w-6 h-6 text-emerald-500" />
+                </div>
+                <p className="text-emerald-800 font-bold text-sm uppercase tracking-wider">Trace Concluded</p>
+                <p className="text-emerald-600 text-xs mt-1.5 font-medium leading-relaxed">Document immutable state sealed. Pipeline transformations terminated.</p>
               </div>
             )}
           </div>
 
-          {/* RIGHT */}
+          {/* ── RIGHT COLUMN ── */}
           <div className="lg:col-span-2 space-y-6">
-
-            {/* Audit Trail */}
-            <div className="bg-white rounded-xl shadow p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-gray-800">
-                  📋 Audit Trail
-                  <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                    {history.length} events
-                  </span>
-                </h3>
+            
+            {/* Audit Trail Row Timeline Container */}
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl shadow-gray-200/50">
+              <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4 text-indigo-500" />
+                  <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider">Chrono Trail History</h3>
+                  <span className="text-[10px] font-bold bg-white border border-gray-200 text-gray-500 px-2 py-0.5 rounded-full shadow-sm">{history.length} cycles</span>
+                </div>
                 {history.length > 0 && (
-                  <div className="flex gap-2">
-                    <button onClick={() => exportAuditTrailCSV(doc, history)}
-                      className="text-xs px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg transition font-medium">
-                      📥 CSV
-                    </button>
-                    <button onClick={() => exportAuditTrailPDF(doc, history)}
-                      className="text-xs px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition font-medium">
-                      📄 PDF
-                    </button>
+                  <div className="flex items-center bg-white border border-gray-200 p-1 rounded-xl shadow-sm">
+                    <button onClick={() => exportAuditTrailCSV(doc, history)} className="hover:bg-gray-50 text-gray-600 hover:text-emerald-600 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> CSV</button>
+                    <div className="w-px h-4 bg-gray-200 mx-1" />
+                    <button onClick={() => exportAuditTrailPDF(doc, history)} className="hover:bg-gray-50 text-gray-600 hover:text-rose-600 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> PDF</button>
                   </div>
                 )}
               </div>
 
-              {history.length === 0 ? (
-                <p className="text-gray-400 text-sm">No history yet.</p>
-              ) : (
-                <div className="relative">
-                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-100" />
-                  <div className="space-y-6">
-                    {history.map((log, index) => (
-                      <div key={log.id} className="relative flex gap-4">
-                        <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-xs flex-shrink-0
-                          ${index === history.length - 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 pb-2">
-                          <p className="font-medium text-gray-800 text-sm">{log.action_taken}</p>
-                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                            {log.from_department && (
-                              <span className="text-xs text-gray-400">
-                                From: <span className="text-gray-600">{log.from_department}</span>
-                              </span>
-                            )}
-                            {log.to_department && (
-                              <span className="text-xs text-gray-400">
-                                To: <span className="text-gray-600">{log.to_department}</span>
-                              </span>
-                            )}
-                            {log.to_user_name && (
-                              <span className="text-xs text-blue-500">
-                                → {log.to_user_name}
-                              </span>
-                            )}
+              <div className="p-6">
+                {history.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Clock className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm font-medium">No system log updates verified down to stack yet.</p>
+                  </div>
+                ) : (
+                  <div className="relative pl-3 space-y-0">
+                    {/* Vertical Timeline Guide */}
+                    <div className="absolute left-4 top-2 bottom-4 w-px bg-gray-200" />
+
+                    {history.map((event, i) => {
+                      const isLast = i === history.length - 1;
+                      return (
+                        <div key={event.id ?? i} className="relative flex gap-5 group">
+                          {/* Timeline Dot Indicator */}
+                          <div className="flex flex-col items-center flex-shrink-0 relative z-10 pt-1.5">
+                            <div className={`w-2.5 h-2.5 rounded-full ring-4 ring-white shadow-sm border ${actionDotColor(event.action_taken ?? event.status)}`} />
                           </div>
-                          {log.remarks && (
-                            <div className="mt-1.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
-                              <p className="text-xs text-gray-500 italic">"{log.remarks}"</p>
+                          
+                          <div className={`flex-1 min-w-0 pb-6 ${isLast ? 'pb-2' : ''}`}>
+                            <p className="text-sm font-bold text-gray-900 tracking-tight leading-snug">{event.action_taken ?? event.status}</p>
+                            
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2 text-xs text-gray-500 font-medium">
+                              {event.from_department && (
+                                <span className="bg-gray-50 px-2 py-1 rounded-md border border-gray-200 shadow-sm flex items-center gap-1">
+                                  <span className="text-gray-400">From:</span> <span className="text-gray-700 font-bold">{event.from_department}</span>
+                                </span>
+                              )}
+                              {event.to_department && (
+                                <span className="bg-gray-50 px-2 py-1 rounded-md border border-gray-200 shadow-sm flex items-center gap-1">
+                                  <span className="text-gray-400">To:</span> <span className="text-gray-700 font-bold">{event.to_department}</span>
+                                </span>
+                              )}
+                              {event.to_user_name && (
+                                <span className="text-indigo-600 font-bold flex items-center gap-1">
+                                  <ArrowRight className="w-3.5 h-3.5"/> {event.to_user_name}
+                                </span>
+                              )}
                             </div>
-                          )}
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-xs text-gray-400">
-                              By <span className="text-gray-600 font-medium">{log.performed_by}</span>
-                            </span>
-                            <span className="text-gray-300">·</span>
-                            <span className="text-xs text-gray-400">
-                              {new Date(log.timestamp).toLocaleString()}
-                            </span>
+                            
+                            {event.remarks && (
+                              <div className="mt-2.5 bg-gray-50 border-l-2 border-indigo-300 py-2 px-3 rounded-r-lg">
+                                <p className="text-xs text-gray-600 italic leading-relaxed">"{event.remarks}"</p>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2 mt-2.5 text-[10px] uppercase tracking-wider font-bold text-gray-400">
+                              <span className="flex items-center gap-1">
+                                <User className="w-3 h-3" /> {event.performed_by || event.performed_by_name}
+                              </span>
+                              <span className="text-gray-300">•</span>
+                              <span className="flex items-center gap-1 text-gray-500 font-mono">
+                                <Clock className="w-3 h-3 text-gray-400" /> {new Date(event.created_at ?? event.timestamp).toLocaleString()}
+                              </span>
+                            </div>
                           </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* File Binary Attachments Component Wrapper */}
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl shadow-gray-200/50">
+              <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+                <Paperclip className="w-4 h-4 text-gray-500" />
+                <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider">Linked Document Binaries</h3>
+                <span className="text-[10px] font-bold bg-white border border-gray-200 text-gray-500 px-2 py-0.5 rounded-full shadow-sm ml-auto">{attachments.length} files</span>
+              </div>
+
+              <div className="p-6 space-y-6">
+                
+                {/* Upload Zone */}
+                <div className="border-2 border-dashed border-gray-200 hover:border-indigo-400 rounded-2xl p-5 transition-colors duration-200 group bg-gray-50/50">
+                  <div className="text-center mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center mx-auto mb-2.5 shadow-sm transition-transform group-hover:scale-105">
+                      <Upload className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 transition-colors" />
+                    </div>
+                    <p className="text-[11px] text-gray-500 font-medium">Supported profiles: PDF, Word, Excel, Images — max 10MB per payload frame</p>
+                  </div>
+                  
+                  <input ref={fileInputRef} type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif" onChange={e => setSelectedFiles(Array.from(e.target.files))} 
+                    className="w-full text-xs font-medium text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 file:transition-colors file:cursor-pointer file:shadow-sm" />
+
+                  {selectedFiles.length > 0 && (
+                    <div className="mt-4 space-y-2 border-t border-gray-200 pt-4">
+                      {selectedFiles.map((file, i) => (
+                        <div key={i} className="flex items-center gap-3 text-xs text-gray-600 bg-white border border-gray-200 px-3 py-2 rounded-xl shadow-sm font-medium">
+                          <FileIcon type={file.type} className="w-4 h-4" />
+                          <span className="flex-1 truncate text-gray-900 font-bold">{file.name}</span>
+                          <span className="text-gray-400 font-mono text-[10px]">{formatFileSize(file.size)}</span>
+                        </div>
+                      ))}
+                      <button onClick={handleUpload} disabled={uploadLoading} className="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 shadow-md shadow-indigo-200 transition-all active:scale-[0.98]">
+                        {uploadLoading ? <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" /> : <Upload className="w-4 h-4" />}
+                        {uploadLoading ? 'Uploading Matrix Layers...' : `Confirm Upload (${selectedFiles.length} item${selectedFiles.length > 1 ? 's' : ''})`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Grid Lists */}
+                {attachments.length === 0 ? (
+                  <div className="text-center py-2">
+                    <p className="text-gray-400 text-sm font-medium">No file fragments mapped to trace element container.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {attachments.map(att => (
+                      <div key={att.id} className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-indigo-200 transition-all duration-200 group">
+                        <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 shadow-inner group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors">
+                          <FileIcon type={att.file_type} className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{att.file_name}</p>
+                          <p className="text-[10px] text-gray-500 mt-1 font-medium flex flex-col gap-0.5">
+                            <span className="font-mono text-gray-400">{formatFileSize(att.file_size)}</span>
+                            <span>{att.uploaded_by_name} • {new Date(att.uploaded_at).toLocaleDateString()}</span>
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-1.5 flex-shrink-0 border-l border-gray-100 pl-3">
+                          <button onClick={() => window.open(`http://localhost:5000/api/documents/attachments/${att.id}`, '_blank')} 
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Fetch Binary">
+                            <Download className="w-4 h-4" />
+                          </button>
+                          {(att.uploaded_by === user?.id || isSuperAdmin) && (
+                            <button onClick={() => handleDeleteAttachment(att.id, att.file_name)} 
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Wipe Record">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* Attachments */}
-            <div className="bg-white rounded-xl shadow p-6">
-              <h3 className="font-semibold text-gray-800 mb-5">
-                📎 Attachments
-                <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                  {attachments.length} file{attachments.length !== 1 ? 's' : ''}
-                </span>
-              </h3>
-
-              {/* Upload area — available to everyone */}
-              <div className="border-2 border-dashed border-gray-200 rounded-xl p-5 mb-5 hover:border-blue-300 transition">
-                <div className="text-center mb-3">
-                  <div className="text-3xl mb-1">📁</div>
-                  <p className="text-sm text-gray-500">
-                    PDF, Word, Excel, JPG, PNG — max 10MB each, up to 5 files per upload
-                  </p>
-                </div>
-                <input ref={fileInputRef} type="file" multiple
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif"
-                  onChange={e => setSelectedFiles(Array.from(e.target.files))}
-                  className="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-
-                {selectedFiles.length > 0 && (
-                  <div className="mt-3">
-                    <div className="space-y-1 mb-3">
-                      {selectedFiles.map((file, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">
-                          <span>{fileIcon(file.type)}</span>
-                          <span className="flex-1 truncate">{file.name}</span>
-                          <span className="text-gray-400">{formatFileSize(file.size)}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <button onClick={handleUpload} disabled={uploadLoading}
-                      className="w-full bg-blue-700 hover:bg-blue-800 text-white py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-60">
-                      {uploadLoading ? 'Uploading...' : `Upload ${selectedFiles.length} File(s)`}
-                    </button>
-                  </div>
                 )}
               </div>
-
-              {/* Attachment list */}
-              {attachments.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-4">No attachments yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {attachments.map(att => (
-                    <div key={att.id}
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-blue-200 transition">
-                      <span className="text-2xl">{fileIcon(att.file_type)}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{att.file_name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {formatFileSize(att.file_size)} · {att.uploaded_by_name} · {new Date(att.uploaded_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => window.open(`http://localhost:5000/api/documents/attachments/${att.id}`, '_blank')}
-                          className="text-xs px-2.5 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition">
-                          View
-                        </button>
-                        {(att.uploaded_by === user?.id || isSuperAdmin) && (
-                          <button onClick={() => handleDeleteAttachment(att.id, att.file_name)}
-                            className="text-xs px-2.5 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition">
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
           </div>
