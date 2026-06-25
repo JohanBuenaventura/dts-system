@@ -95,7 +95,10 @@ const DashboardPage = () => {
     created:   docs.filter(d => d.status === 'Created').length,
   };
 
-  const recent   = docs.slice(0, 5);
+// Sort by newest first, THEN grab the top 5
+  const recent = [...docs]
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 5);
   const statuses = ['Completed', 'In Transit', 'Received', 'Created'];
   const statColors = {
     Completed:  'text-emerald-600',

@@ -9,7 +9,7 @@ import {
   ArrowLeft, ArrowRight, Truck, Inbox, CheckCircle2, Paperclip, Trash2, 
   Download, Upload, FileText, FileSpreadsheet, Image as FileImage, File, 
   ClipboardList, CheckCheck, Clock, MapPin, User, Calendar, AlignLeft, 
-  AlertTriangle, Flame, Eye, X
+  AlertTriangle, Flame, Eye, X, Plus
 } from 'lucide-react';
 
 const formatFileSize = (bytes) => {
@@ -79,13 +79,14 @@ const DocumentDetailPage = () => {
   const [doc,           setDoc]           = useState(null);
   const [history,       setHistory]       = useState([]);
   const [attachments,   setAttachments]   = useState([]);
-  const [deptUsers,     setDeptUsers]     = useState([]);
   const [departments,   setDepartments]   = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [message,       setMessage]       = useState({ type: '', text: '' });
 
-  const [selectedDepts,  setSelectedDepts]  = useState([]);
-  const [toUserId,       setToUserId]       = useState('');
+  // ── MATRIX ROUTING STATE (RESTORED ROW BUILDER) ──
+  const [destinations, setDestinations] = useState([{ department: '', to_user_id: '' }]);
+  const [usersByDept, setUsersByDept]   = useState({});
+
   const [forwardRemarks, setForwardRemarks] = useState('');
   const [rejectRemarks,  setRejectRemarks]  = useState('');
   const [completeRemarks,setCompleteRemarks]= useState('');
@@ -99,7 +100,6 @@ const DocumentDetailPage = () => {
   const isStaff      = user?.role === 'Staff';
   const isAdmin      = user?.role === 'Admin';
   const isSuperAdmin = user?.role === 'Super Admin';
-  const viewerOnly   = isAdmin; 
 
   const fetchData = async () => {
     try {
@@ -122,70 +122,88 @@ const DocumentDetailPage = () => {
 
   useEffect(() => { fetchData(); }, [id]);
 
-  useEffect(() => {
-    if (selectedDepts.length === 1) {
-      api.get('/routing/users/by-department', { params: { department: selectedDepts[0] } })
-        .then(res => setDeptUsers(res.data.data))
-        .catch(console.error);
-    } else {
-      setDeptUsers([]);
-      setToUserId('');
-    }
-  }, [selectedDepts]);
-
   const showMsg = (type, text) => {
     setMessage({ type, text });
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
-  // ── MATRIX TRACKING REFINEMENTS ───────────────────────────────────────────
-  // Look up this specific user's department's record inside the tracking array
+  // ── PERMISSIONS / VISIBILITY LOGIC ─────────────────────────────────────────
+  const isCreator         = doc?.created_by === user?.id;
   const myRecipientRecord = doc?.recipients?.find(r => r.department === user?.department);
   const myRecipientStatus = myRecipientRecord ? myRecipientRecord.status : null;
   const isInMyDept        = doc?.current_location_dept === user?.department;
 
-  // Permissions are now bound directly to individual recipient matrix states
-  const canAct       = (isStaff || isSuperAdmin) && doc?.status !== 'Completed';
-  
-  // Can receive if it's explicitly assigned to your department and currently Pending
+  const computedStatus = myRecipientStatus || doc?.status;
+  const displayStatus  = computedStatus === 'Pending' ? 'In Transit' : computedStatus;
+
+  const canAct       = (isStaff || isSuperAdmin || isCreator) && doc?.status !== 'Completed';
   const canReceive   = canAct && myRecipientStatus === 'Pending';
-  
-  // Can reject if it's currently Pending or Received by your department
   const canReject    = canAct && (myRecipientStatus === 'Pending' || myRecipientStatus === 'Received');
+  const viewerOnly   = isAdmin && !isCreator; 
   
-  // Can complete if your department has Received it, or if it is newly Created in your department and not yet routed
   const canComplete  = canAct && !viewerOnly && (
     myRecipientStatus === 'Received' || 
     (doc?.status === 'Created' && isInMyDept)
   );
 
-  // Can forward if you currently have it checked-in ('Received'), are the initial creator ('Created'), or are a Super Admin overriding
-  const canForward   = canAct && (
+  const canForward   = canAct && !viewerOnly && (
     myRecipientStatus === 'Received' || 
     (doc?.status === 'Created' && isInMyDept) ||
     isSuperAdmin
   );
   // ──────────────────────────────────────────────────────────────────────────
 
+  // ── ROW BUILDER FUNCTIONS ──
+  const addDestination = () => {
+    setDestinations([...destinations, { department: '', to_user_id: '' }]);
+  };
+
+  const removeDestination = (index) => {
+    setDestinations(destinations.filter((_, i) => i !== index));
+  };
+
+  const handleDeptChange = async (index, newDept) => {
+    const newDests = [...destinations];
+    newDests[index].department = newDept;
+    newDests[index].to_user_id = ''; 
+    setDestinations(newDests);
+
+    if (newDept && !usersByDept[newDept]) {
+      try {
+        const res = await api.get('/routing/users/by-department', { params: { department: newDept } });
+        setUsersByDept(prev => ({ ...prev, [newDept]: res.data.data }));
+      } catch (err) {
+        console.error('Failed to fetch department users:', err);
+      }
+    }
+  };
+
+  const handleUserChange = (index, userId) => {
+    const newDests = [...destinations];
+    newDests[index].to_user_id = userId;
+    setDestinations(newDests);
+  };
+
   const handleForward = async () => {
-    if (selectedDepts.length === 0) return showMsg('error', 'Select at least one department.');
+    const validDestinations = destinations.filter(d => d.department.trim() !== '');
+
+    if (validDestinations.length === 0) return showMsg('error', 'Select at least one valid destination department.');
+    
     setActionLoading(true);
     try {
-      // FIXED: Build destinations matrix array matching backend requirements
-      const destinations = selectedDepts.map(dept => ({
-        department: dept,
-        to_user_id: selectedDepts.length === 1 && toUserId ? toUserId : null
-      }));
-
       await api.post(`/routing/${id}/forward`, {
-        destinations,
-        remarks: forwardRemarks || null,
+        destinations: validDestinations, 
+        remarks:      forwardRemarks || null,
       });
-      showMsg('success', `Forwarded to ${selectedDepts.join(', ')}.`);
-      setSelectedDepts([]); setToUserId(''); setForwardRemarks('');
+      showMsg('success', `Forwarded successfully.`);
+      setDestinations([{ department: '', to_user_id: '' }]); 
+      setForwardRemarks('');
       fetchData();
-    } catch (err) { showMsg('error', err.response?.data?.message || 'Forward failed.'); } 
-    finally { setActionLoading(false); }
+    } catch (err) {
+      showMsg('error', err.response?.data?.message || 'Forward failed.');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleReceive = async () => {
@@ -244,13 +262,7 @@ const DocumentDetailPage = () => {
     } catch (err) { showMsg('error', err.response?.data?.message || 'Delete failed.'); }
   };
 
-  const toggleDept = (deptName) => {
-    setSelectedDepts(prev =>
-      prev.includes(deptName)
-        ? prev.filter(d => d !== deptName)
-        : [...prev, deptName]
-    );
-  };
+  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all placeholder-gray-400 bg-white";
 
   if (loading) return (
     <div className="min-h-screen bg-gray-50 font-sans relative overflow-hidden">
@@ -272,8 +284,6 @@ const DocumentDetailPage = () => {
       </div>
     </div>
   );
-
-  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all placeholder-gray-400";
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans selection:bg-indigo-500/30 selection:text-indigo-900 relative overflow-x-hidden">
@@ -321,8 +331,9 @@ const DocumentDetailPage = () => {
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl shadow-gray-200/50">
               <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-start justify-between gap-4">
                 <h2 className="font-bold text-gray-900 text-sm tracking-tight leading-snug truncate" title={doc.title}>{doc.title}</h2>
-                <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider whitespace-nowrap flex-shrink-0 border ${statusBadge(doc.status)}`}>
-                  {doc.status}
+                {/* CHANGED: Now uses displayStatus */}
+                <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider whitespace-nowrap flex-shrink-0 border ${statusBadge(displayStatus)}`}>
+                  {displayStatus}
                 </span>
               </div>
               <div className="px-5 py-3">
@@ -395,36 +406,62 @@ const DocumentDetailPage = () => {
                     </div>
                   )}
 
-                  {/* Forward Block */}
+                  {/* Restored Row Builder Forward Block */}
                   {canForward && (
                     <div className="pb-5 border-b border-gray-100 last:border-0">
                       <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Forward Target Nodes</p>
                       
-                      <div className="space-y-1.5 max-h-44 overflow-y-auto border border-gray-200 rounded-xl p-3 mb-3 bg-gray-50 shadow-inner">
-                        {departments
-                          .filter(d => d.name !== user?.department && d.name !== 'System Administrator')
-                          .map(d => (
-                            <label key={d.id} className="flex items-center gap-2.5 text-sm cursor-pointer hover:bg-white px-2 py-1.5 rounded-lg border border-transparent hover:border-gray-200 transition-colors">
-                              <input type="checkbox"
-                                  checked={selectedDepts.includes(d.name)}
-                                  onChange={() => toggleDept(d.name)}
-                                  className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                              <span className="text-gray-700 font-medium">{d.name}</span>
-                            </label>
-                          ))}
+                      <div className="space-y-3 mb-4">
+                        {destinations.map((dest, index) => (
+                          <div key={index} className="flex gap-3 items-start bg-gray-50 p-3 rounded-xl border border-gray-200 shadow-inner">
+                            <div className="flex-1 space-y-3">
+                              
+                              {/* Department Select */}
+                              <div>
+                                <label className="text-[10px] uppercase font-bold text-gray-500 mb-1 block">Department <span className="text-red-500">*</span></label>
+                                <select 
+                                  value={dest.department} 
+                                  onChange={(e) => handleDeptChange(index, e.target.value)}
+                                  className={`${inputClass} py-2`}
+                                >
+                                  <option value="">— Select Dept —</option>
+                                  {departments
+                                    .filter(d => d.name !== user?.department && d.name !== 'System Administrator')
+                                    .map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                                </select>
+                              </div>
+                              
+                              {/* Specific User Select */}
+                              <div>
+                                <label className="text-[10px] uppercase font-bold text-gray-500 mb-1 block">Specific Person (Optional)</label>
+                                <select 
+                                  value={dest.to_user_id} 
+                                  onChange={(e) => handleUserChange(index, e.target.value)}
+                                  disabled={!dest.department}
+                                  className={`${inputClass} py-2 disabled:bg-gray-100 disabled:text-gray-400`}
+                                >
+                                  <option value="">— Anyone (General) —</option>
+                                  {(usersByDept[dest.department] || []).map(u => (
+                                    <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                            </div>
+
+                            {/* Remove Button */}
+                            {destinations.length > 1 && (
+                              <button onClick={() => removeDestination(index)} className="p-2 mt-6 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove Destination">
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
                       </div>
 
-                      {selectedDepts.length === 1 && deptUsers.length > 0 && (
-                        <div className="mb-3">
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Bind to Specific Operator</label>
-                          <select value={toUserId} onChange={e => setToUserId(e.target.value)} className={inputClass}>
-                            <option value="">— Unassigned (Any operator in {selectedDepts[0]}) —</option>
-                            {deptUsers.map(u => (
-                              <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
+                      <button onClick={addDestination} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 mb-4 transition-colors">
+                        <Plus className="w-3.5 h-3.5" /> Add Another Destination
+                      </button>
 
                       <textarea value={forwardRemarks}
                         onChange={e => setForwardRemarks(e.target.value)}
@@ -432,10 +469,10 @@ const DocumentDetailPage = () => {
                         className={`${inputClass} resize-none mb-3`} />
 
                       <button onClick={handleForward}
-                        disabled={actionLoading || selectedDepts.length === 0}
+                        disabled={actionLoading || destinations.every(d => !d.department)}
                         className="w-full bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl text-sm font-bold shadow-md shadow-amber-200 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2">
                         <Truck className="w-4 h-4" /> 
-                        Forward Pipeline {selectedDepts.length > 0 ? `(${selectedDepts.length})` : ''}
+                        Forward Pipeline {destinations.filter(d => d.department).length > 0 ? `(${destinations.filter(d => d.department).length})` : ''}
                       </button>
                     </div>
                   )}

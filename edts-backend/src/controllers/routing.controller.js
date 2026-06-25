@@ -9,14 +9,6 @@ export const forwardDocument = async (req, res) => {
     const { destinations = [], remarks } = req.body;
     const performedBy = req.user;
 
-    // Only Staff and Super Admin can forward
-    if (performedBy.role === 'Admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Admins are view-only. Only Staff or Super Admin can forward documents.',
-      });
-    }
-
     if (!destinations || destinations.length === 0) {
       return res.status(400).json({
         success: false,
@@ -24,6 +16,7 @@ export const forwardDocument = async (req, res) => {
       });
     }
 
+    // Fetch the document first
     const [rows] = await pool.execute(
       'SELECT * FROM documents WHERE id = ?', [id]
     );
@@ -32,6 +25,14 @@ export const forwardDocument = async (req, res) => {
     }
 
     const document = rows[0];
+
+    // FIXED: Admin Creator Override applied here
+    if (performedBy.role === 'Admin' && document.created_by !== performedBy.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admins are view-only. You can only forward documents you created yourself.',
+      });
+    }
 
     if (document.status === 'Completed') {
       return res.status(400).json({
@@ -70,11 +71,12 @@ export const forwardDocument = async (req, res) => {
     }
 
     // Update document status globally to In Transit
+    // If multiple destinations, label location as 'Multiple Departments'
+    const multiDeptLocation = validDestinations.length > 1 ? 'Multiple Departments' : validDestinations[0].department;
+    
     await pool.execute(
-      `UPDATE documents SET status = 'In Transit',
-        current_location_dept = ?
-       WHERE id = ?`,
-      [validDestinations[0].department, id]
+      `UPDATE documents SET status = 'In Transit', current_location_dept = ? WHERE id = ?`,
+      [multiDeptLocation, id]
     );
 
     // Insert recipient tracking item per destination department
@@ -90,8 +92,7 @@ export const forwardDocument = async (req, res) => {
 
       await pool.execute(
         `INSERT INTO document_logs
-          (document_id, action_taken, from_department, to_department,
-           remarks, to_user_id, performed_by_user_id)
+          (document_id, action_taken, from_department, to_department, remarks, to_user_id, performed_by_user_id)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
@@ -132,76 +133,56 @@ export const receiveDocument = async (req, res) => {
     const { remarks } = req.body;
     const performedBy = req.user;
 
-    if (performedBy.role === 'Admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Admins are view-only. Only Staff or Super Admin can receive documents.',
-      });
-    }
-
-    const [rows] = await pool.execute(
-      'SELECT * FROM documents WHERE id = ?', [id]
-    );
+    const [rows] = await pool.execute('SELECT * FROM documents WHERE id = ?', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Document not found.' });
     }
 
     const document = rows[0];
 
-    // FIXED: Evaluate permissions using the department's specific recipient instance, ignoring global status blocks
+    // FIXED: Admin Creator Override applied here
+    if (performedBy.role === 'Admin' && document.created_by !== performedBy.id) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Admins are view-only. You can only receive documents you created yourself.' 
+      });
+    }
+
     const [recipientRows] = await pool.execute(
-      `SELECT id FROM document_recipients 
-       WHERE document_id = ? AND department = ? AND status = 'Pending'`,
+      `SELECT id FROM document_recipients WHERE document_id = ? AND department = ? AND status = 'Pending'`,
       [id, performedBy.department]
     );
 
     if (recipientRows.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'This document is either not pending for your department, or has already been received.',
-      });
+      return res.status(400).json({ success: false, message: 'Not pending for your department.' });
     }
 
-    // Update global context location references safely
+    // 1. Update ONLY this specific department's row to 'Received'
     await pool.execute(
-      `UPDATE documents SET status = 'Received', current_location_dept = ? WHERE id = ?`, 
-      [performedBy.department, id]
-    );
-
-    // Update ONLY this department's status to Received
-    await pool.execute(
-      `UPDATE document_recipients
-       SET status = 'Received', responded_at = NOW(), remarks = ?
+      `UPDATE document_recipients SET status = 'Received', responded_at = NOW(), remarks = ?
        WHERE document_id = ? AND department = ? AND status = 'Pending'`,
       [remarks || null, id, performedBy.department]
     );
 
+    // 2. FIXED: DYNAMIC GLOBAL STATUS RECALCULATION
+    const [pending] = await pool.execute(`SELECT id FROM document_recipients WHERE document_id = ? AND status = 'Pending'`, [id]);
+    const [received] = await pool.execute(`SELECT id FROM document_recipients WHERE document_id = ? AND status = 'Received'`, [id]);
+
+    if (pending.length > 0) {
+      // If ANY department has not received it yet, global status must remain 'In Transit'
+      await pool.execute(`UPDATE documents SET status = 'In Transit' WHERE id = ?`, [id]);
+    } else if (received.length > 0) {
+      // No one is pending, so we can finally globally mark it as 'Received'
+      await pool.execute(`UPDATE documents SET status = 'Received' WHERE id = ?`, [id]);
+    }
+
     await pool.execute(
-      `INSERT INTO document_logs
-        (document_id, action_taken, from_department, to_department,
-         remarks, performed_by_user_id)
+      `INSERT INTO document_logs (document_id, action_taken, from_department, to_department, remarks, performed_by_user_id)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        `Received by ${performedBy.department}`,
-        document.current_location_dept,
-        performedBy.department,
-        remarks || null,
-        performedBy.id,
-      ]
+      [id, `Received by ${performedBy.department}`, document.current_location_dept, performedBy.department, remarks || null, performedBy.id]
     );
 
-    return res.status(200).json({
-      success: true,
-      message: 'Document received successfully.',
-      data: {
-        document_id: id,
-        received_by: performedBy.full_name,
-        department:  performedBy.department,
-        new_status:  'Received',
-        remarks:     remarks || null,
-      },
-    });
+    return res.status(200).json({ success: true, message: 'Document received successfully.' });
 
   } catch (error) {
     console.error('[RECEIVE ERROR]', error);
@@ -216,10 +197,6 @@ export const rejectDocument = async (req, res) => {
     const { remarks } = req.body;
     const performedBy = req.user;
 
-    if (performedBy.role === 'Admin') {
-      return res.status(403).json({ success: false, message: 'Admins are view-only.' });
-    }
-
     if (!remarks || remarks.trim() === '') {
       return res.status(400).json({ success: false, message: 'Remarks are required when rejecting.' });
     }
@@ -233,7 +210,14 @@ export const rejectDocument = async (req, res) => {
 
     const document = rows[0];
 
-    // FIXED: Verify targeted active presence using recipients mapping table
+    // FIXED: Admin Creator Override applied here
+    if (performedBy.role === 'Admin' && document.created_by !== performedBy.id) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Admins are view-only. You can only reject documents you created yourself.' 
+      });
+    }
+
     const [recipientRows] = await pool.execute(
       `SELECT id FROM document_recipients 
        WHERE document_id = ? AND department = ? AND status IN ('Pending', 'Received')`,
@@ -256,17 +240,28 @@ export const rejectDocument = async (req, res) => {
 
     const returnToDept = logRows.length > 0 ? logRows[0].from_department : document.current_location_dept;
 
-    await pool.execute(
-      `UPDATE documents SET status = 'In Transit', current_location_dept = ? WHERE id = ?`,
-      [returnToDept, id]
-    );
-
+    // 1. Update ONLY this department's row to Rejected
     await pool.execute(
       `UPDATE document_recipients
        SET status = 'Rejected', responded_at = NOW(), remarks = ?
        WHERE document_id = ? AND department = ? AND status IN ('Pending', 'Received')`,
       [remarks, id, performedBy.department]
     );
+
+    // 2. FIXED: DYNAMIC GLOBAL STATUS RECALCULATION
+    const [pending] = await pool.execute(`SELECT id FROM document_recipients WHERE document_id = ? AND status = 'Pending'`, [id]);
+    const [received] = await pool.execute(`SELECT id FROM document_recipients WHERE document_id = ? AND status = 'Received'`, [id]);
+
+    if (pending.length > 0) {
+      // If ANY department has not received it yet, global status must remain 'In Transit'
+      await pool.execute(`UPDATE documents SET status = 'In Transit' WHERE id = ?`, [id]);
+    } else if (received.length > 0) {
+      // No one is pending, but some departments are still actively working on it
+      await pool.execute(`UPDATE documents SET status = 'Received' WHERE id = ?`, [id]);
+    } else {
+      // EVERY active department has finished (or rejected)
+      await pool.execute(`UPDATE documents SET status = 'Completed' WHERE id = ?`, [id]);
+    }
 
     await pool.execute(
       `INSERT INTO document_logs
@@ -294,10 +289,6 @@ export const completeDocument = async (req, res) => {
     const { remarks } = req.body;
     const performedBy = req.user;
 
-    if (performedBy.role === 'Admin') {
-      return res.status(403).json({ success: false, message: 'Admins are view-only.' });
-    }
-
     const [rows] = await pool.execute(
       'SELECT * FROM documents WHERE id = ?', [id]
     );
@@ -307,7 +298,14 @@ export const completeDocument = async (req, res) => {
 
     const document = rows[0];
 
-    // FIXED: Verify this specific department actually received the document before permitting completion
+    // FIXED: Admin Creator Override applied here
+    if (performedBy.role === 'Admin' && document.created_by !== performedBy.id) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Admins are view-only. You can only complete documents you created yourself.' 
+      });
+    }
+
     const [recipientRows] = await pool.execute(
       `SELECT id FROM document_recipients 
        WHERE document_id = ? AND department = ? AND status = 'Received'`,
@@ -337,7 +335,7 @@ export const completeDocument = async (req, res) => {
       });
     }
 
-    // Update ONLY this department's recipient instance tracking row to Completed
+    // 1. Update ONLY this department's recipient instance tracking row to Completed
     await pool.execute(
       `UPDATE document_recipients
        SET status = 'Completed', responded_at = NOW(), remarks = ?
@@ -345,23 +343,19 @@ export const completeDocument = async (req, res) => {
       [remarks || null, id, performedBy.department]
     );
 
-    // FIXED: Evaluate if other targeted departments are still processing this wave
-    const [remainingRecipients] = await pool.execute(
-      `SELECT id FROM document_recipients 
-       WHERE document_id = ? AND status IN ('Pending', 'Received')`,
-      [id]
-    );
+    // 2. FIXED: DYNAMIC GLOBAL STATUS RECALCULATION
+    const [pending] = await pool.execute(`SELECT id FROM document_recipients WHERE document_id = ? AND status = 'Pending'`, [id]);
+    const [received] = await pool.execute(`SELECT id FROM document_recipients WHERE document_id = ? AND status = 'Received'`, [id]);
 
-    // Only mark the GLOBAL document status as 'Completed' if EVERY department has finished their side
-    if (remainingRecipients.length === 0) {
-      await pool.execute(
-        `UPDATE documents SET status = 'Completed' WHERE id = ?`, [id]
-      );
+    if (pending.length > 0) {
+      // If ANY department has not received it yet, global status must remain 'In Transit'
+      await pool.execute(`UPDATE documents SET status = 'In Transit' WHERE id = ?`, [id]);
+    } else if (received.length > 0) {
+      // No one is pending, but some departments are still actively working on it
+      await pool.execute(`UPDATE documents SET status = 'Received' WHERE id = ?`, [id]);
     } else {
-      // Keep it active globally as 'Received' so other departments can still process it safely
-      await pool.execute(
-        `UPDATE documents SET status = 'Received' WHERE id = ?`, [id]
-      );
+      // EVERY active department has finished (or rejected)
+      await pool.execute(`UPDATE documents SET status = 'Completed' WHERE id = ?`, [id]);
     }
 
     await pool.execute(
@@ -420,7 +414,7 @@ export const getDocumentHistory = async (req, res) => {
 
   } catch (error) {
     console.error('[HISTORY ERROR]', error);
-    return res.status(5000).json({ success: false, message: 'Server error.' });
+    return res.status(500).json({ success: false, message: 'Server error.' });
   }
 };
 
