@@ -38,7 +38,6 @@ export const createDocument = async (req, res) => {
     }
 
     const [result] = await pool.execute(
-      // FIXED: document_kind changed to document_type
       `INSERT INTO documents
         (tracking_code, title, description, type, document_type,
          due_date, urgency, dest_department, status,
@@ -46,7 +45,7 @@ export const createDocument = async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Created', ?, ?)`,
       [
         tracking_code, title, description || null,
-        type, document_type || 'General', // FIXED: mapped to document_type variable
+        type, document_type || 'General', 
         due_date || null,
         urgency  || 'Normal',
         dest_department || null,
@@ -89,7 +88,7 @@ export const createDocument = async (req, res) => {
 export const getAllDocuments = async (req, res) => {
   try {
     const page    = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit   = Math.min(50, parseInt(req.query.limit) || 10);
+    const limit   = Math.min(10000, parseInt(req.query.limit) || 10);
     const offset  = (page - 1) * limit;
     const search  = req.query.search  || '';
     const status  = req.query.status  || '';
@@ -99,12 +98,25 @@ export const getAllDocuments = async (req, res) => {
     const conditions = [];
     const params     = [];
 
+    // FIXED: Strict ownership visibility logic
     if (req.user.role === 'Admin') {
-      conditions.push('(d.current_location_dept = ? OR u.department = ?)');
-      params.push(req.user.department, req.user.department);
+      // Admins see everything currently in their department, created by members of their department, or routed to their department
+      conditions.push(`(
+        d.current_location_dept = ? OR 
+        u.department = ? OR 
+        EXISTS (SELECT 1 FROM document_recipients dr WHERE dr.document_id = d.id AND dr.department = ?)
+      )`);
+      params.push(req.user.department, req.user.department, req.user.department);
     } else if (req.user.role === 'Staff') {
-      conditions.push('(d.current_location_dept = ? OR d.created_by = ?)');
-      params.push(req.user.department, req.user.id);
+      // Staff members ONLY see documents they created themselves, or documents explicitly routed to them
+      conditions.push(`(
+        d.created_by = ? OR 
+        EXISTS (
+          SELECT 1 FROM document_recipients dr 
+          WHERE dr.document_id = d.id AND dr.department = ? AND (dr.user_id = ? OR dr.user_id IS NULL)
+        )
+      )`);
+      params.push(req.user.id, req.user.department, req.user.id);
     }
 
     if (search) {
@@ -133,6 +145,7 @@ export const getAllDocuments = async (req, res) => {
        ${where}
        ORDER BY
          FIELD(d.urgency, 'Highly Urgent', 'Urgent', 'Normal'),
+         d.due_date IS NULL ASC,
          d.due_date ASC,
          d.created_at DESC
        LIMIT ${limit} OFFSET ${offset}`,
@@ -182,13 +195,24 @@ export const getDocumentById = async (req, res) => {
 
     const doc = rows[0];
 
+    // FIXED: Strict Direct-URL Security validation
     if (req.user.role === 'Admin') {
       if (doc.current_location_dept !== req.user.department && doc.created_by_dept !== req.user.department) {
-        return res.status(403).json({ success: false, message: 'Access denied. Document is outside your department scope.' });
+        const [dr] = await pool.execute('SELECT id FROM document_recipients WHERE document_id = ? AND department = ?', [id, req.user.department]);
+        if (dr.length === 0) {
+          return res.status(403).json({ success: false, message: 'Access denied. Document is outside your department scope.' });
+        }
       }
     } else if (req.user.role === 'Staff') {
-      if (doc.current_location_dept !== req.user.department && doc.created_by !== req.user.id) {
-        return res.status(403).json({ success: false, message: 'Access denied. You can only view documents you created or are currently routed to your department.' });
+      // Staff cannot bypass verification simply because a document sits in their department
+      if (doc.created_by !== req.user.id) {
+        const [dr] = await pool.execute(
+          'SELECT id FROM document_recipients WHERE document_id = ? AND department = ? AND (user_id = ? OR user_id IS NULL)', 
+          [id, req.user.department, req.user.id]
+        );
+        if (dr.length === 0) {
+          return res.status(403).json({ success: false, message: 'Access denied. You can only view documents you created or that are explicitly routed to you.' });
+        }
       }
     }
 
@@ -246,12 +270,20 @@ export const getOverdueCount = async (req, res) => {
     const conditions = [`d.due_date < CURDATE()`, `d.status != 'Completed'`];
     const params     = [];
 
+    // FIXED: Standardized security filters applied to dashboard statistics
     if (req.user.role === 'Admin') {
-      conditions.push('(d.current_location_dept = ? OR u.department = ?)');
-      params.push(req.user.department, req.user.department);
+      conditions.push(`(
+        d.current_location_dept = ? OR 
+        u.department = ? OR 
+        EXISTS (SELECT 1 FROM document_recipients dr WHERE dr.document_id = d.id AND dr.department = ?)
+      )`);
+      params.push(req.user.department, req.user.department, req.user.department);
     } else if (req.user.role === 'Staff') {
-      conditions.push('(d.current_location_dept = ? OR d.created_by = ?)');
-      params.push(req.user.department, req.user.id);
+      conditions.push(`(
+        d.created_by = ? OR 
+        EXISTS (SELECT 1 FROM document_recipients dr WHERE dr.document_id = d.id AND dr.department = ? AND (dr.user_id = ? OR dr.user_id IS NULL))
+      )`);
+      params.push(req.user.id, req.user.department, req.user.id);
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -285,7 +317,6 @@ export const getActiveDepartments = async (req, res) => {
 };
 
 // ─── GET ACTIVE DOCUMENT TYPES (For Dropdowns) ────────────────────────────────
-// NEW: We need this so the frontend Create Document page can populate the dropdown!
 export const getActiveDocumentTypes = async (req, res) => {
   try {
     const [rows] = await pool.execute(`

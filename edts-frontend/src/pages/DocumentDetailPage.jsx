@@ -49,7 +49,6 @@ const dueBadge = (due_status, due_date) => {
   return null;
 };
 
-// Timeline dot mapping based on action
 const actionDotColor = (action) => {
   if (!action) return 'bg-gray-400 border-gray-200';
   if (action.includes('Created')) return 'bg-gray-400 border-gray-200';
@@ -85,7 +84,6 @@ const DocumentDetailPage = () => {
   const [loading,       setLoading]       = useState(true);
   const [message,       setMessage]       = useState({ type: '', text: '' });
 
-  // Forward form state
   const [selectedDepts,  setSelectedDepts]  = useState([]);
   const [toUserId,       setToUserId]       = useState('');
   const [forwardRemarks, setForwardRemarks] = useState('');
@@ -101,6 +99,7 @@ const DocumentDetailPage = () => {
   const isStaff      = user?.role === 'Staff';
   const isAdmin      = user?.role === 'Admin';
   const isSuperAdmin = user?.role === 'Super Admin';
+  const viewerOnly   = isAdmin; 
 
   const fetchData = async () => {
     try {
@@ -139,28 +138,48 @@ const DocumentDetailPage = () => {
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
-  // ── Determine what actions this user can take
-  const isInMyDept   = doc?.current_location_dept === user?.department;
+  // ── MATRIX TRACKING REFINEMENTS ───────────────────────────────────────────
+  // Look up this specific user's department's record inside the tracking array
+  const myRecipientRecord = doc?.recipients?.find(r => r.department === user?.department);
+  const myRecipientStatus = myRecipientRecord ? myRecipientRecord.status : null;
+  const isInMyDept        = doc?.current_location_dept === user?.department;
+
+  // Permissions are now bound directly to individual recipient matrix states
   const canAct       = (isStaff || isSuperAdmin) && doc?.status !== 'Completed';
-  const canReceive   = canAct && doc?.status === 'In Transit' && isInMyDept;
-  const canForward   = canAct && doc?.status !== 'Completed';
-  const canReject    = canAct && doc?.status === 'In Transit' && isInMyDept;
-  const viewerOnly   = isAdmin; 
+  
+  // Can receive if it's explicitly assigned to your department and currently Pending
+  const canReceive   = canAct && myRecipientStatus === 'Pending';
+  
+  // Can reject if it's currently Pending or Received by your department
+  const canReject    = canAct && (myRecipientStatus === 'Pending' || myRecipientStatus === 'Received');
+  
+  // Can complete if your department has Received it, or if it is newly Created in your department and not yet routed
+  const canComplete  = canAct && !viewerOnly && (
+    myRecipientStatus === 'Received' || 
+    (doc?.status === 'Created' && isInMyDept)
+  );
 
-  const lastForwarderId = history.filter(h => h.action_taken.startsWith('Forwarded')).slice(-1)[0]?.performed_by;
-  const canComplete  = canAct &&
-    (doc?.status === 'Received' || doc?.status === 'Created') &&
-    !viewerOnly;
+  // Can forward if you currently have it checked-in ('Received'), are the initial creator ('Created'), or are a Super Admin overriding
+  const canForward   = canAct && (
+    myRecipientStatus === 'Received' || 
+    (doc?.status === 'Created' && isInMyDept) ||
+    isSuperAdmin
+  );
+  // ──────────────────────────────────────────────────────────────────────────
 
-  // ── Handlers
   const handleForward = async () => {
     if (selectedDepts.length === 0) return showMsg('error', 'Select at least one department.');
     setActionLoading(true);
     try {
+      // FIXED: Build destinations matrix array matching backend requirements
+      const destinations = selectedDepts.map(dept => ({
+        department: dept,
+        to_user_id: selectedDepts.length === 1 && toUserId ? toUserId : null
+      }));
+
       await api.post(`/routing/${id}/forward`, {
-        departments: selectedDepts,
-        to_user_id:  toUserId || null,
-        remarks:     forwardRemarks || null,
+        destinations,
+        remarks: forwardRemarks || null,
       });
       showMsg('success', `Forwarded to ${selectedDepts.join(', ')}.`);
       setSelectedDepts([]); setToUserId(''); setForwardRemarks('');
@@ -259,7 +278,6 @@ const DocumentDetailPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 font-sans selection:bg-indigo-500/30 selection:text-indigo-900 relative overflow-x-hidden">
       
-      {/* Ambient glows */}
       <div className="pointer-events-none fixed top-0 left-1/4 w-[500px] h-[500px] bg-indigo-100 blur-[120px] rounded-full" />
       <div className="pointer-events-none fixed bottom-0 right-1/4 w-[400px] h-[400px] bg-emerald-100/60 blur-[100px] rounded-full" />
 
@@ -267,7 +285,6 @@ const DocumentDetailPage = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
 
-        {/* Dynamic Breadcrumbs */}
         <div className="mb-6 group">
           <Link to="/documents" className="inline-flex items-center text-xs font-bold text-gray-500 hover:text-indigo-600 transition-colors">
             <ArrowLeft className="w-4 h-4 mr-1.5 transition-transform group-hover:-translate-x-0.5" />
@@ -277,7 +294,6 @@ const DocumentDetailPage = () => {
           </Link>
         </div>
 
-        {/* Viewer Only Banner */}
         {viewerOnly && (
           <div className="bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-3 mb-6 flex items-center gap-3 shadow-sm animate-in fade-in duration-300">
             <Eye className="w-5 h-5 text-indigo-500" />
@@ -287,7 +303,6 @@ const DocumentDetailPage = () => {
           </div>
         )}
 
-        {/* Message Banner */}
         {message.text && (
           <div className={`px-5 py-3.5 rounded-xl mb-6 text-sm font-bold border flex items-center gap-2.5 shadow-sm animate-in fade-in slide-in-from-top-1
             ${message.type === 'success' 
@@ -303,7 +318,6 @@ const DocumentDetailPage = () => {
           {/* ── LEFT COLUMN ── */}
           <div className="lg:col-span-1 space-y-6">
 
-            {/* Document Meta Info */}
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl shadow-gray-200/50">
               <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-start justify-between gap-4">
                 <h2 className="font-bold text-gray-900 text-sm tracking-tight leading-snug truncate" title={doc.title}>{doc.title}</h2>
@@ -313,7 +327,6 @@ const DocumentDetailPage = () => {
               </div>
               <div className="px-5 py-3">
                 
-                {/* Due/Urgency Flags */}
                 {(doc.urgency !== 'Normal' || doc.due_date) && (
                   <div className="flex flex-wrap gap-2 mb-2 pt-1 pb-3 border-b border-gray-100">
                     {urgencyBadge(doc.urgency)}
@@ -332,7 +345,6 @@ const DocumentDetailPage = () => {
               </div>
             </div>
 
-            {/* Recipients Section */}
             {doc.recipients?.length > 0 && (
               <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl shadow-gray-200/50">
                 <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
@@ -348,7 +360,8 @@ const DocumentDetailPage = () => {
                         {r.remarks && <p className="text-[11px] text-gray-400 italic mt-1.5 border-l-2 border-gray-200 pl-2">"{r.remarks}"</p>}
                       </div>
                       <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex-shrink-0 border
-                        ${r.status === 'Received' ? 'bg-green-50 text-green-700 border-green-200'
+                        ${r.status === 'Received' ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                          : r.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           : r.status === 'Rejected' ? 'bg-red-50 text-red-600 border-red-200'
                           : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
                         {r.status}
@@ -359,7 +372,6 @@ const DocumentDetailPage = () => {
               </div>
             )}
 
-            {/* Workflow Directives Section */}
             {!viewerOnly && doc.status !== 'Completed' && (
               <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl shadow-gray-200/50">
                 <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
@@ -390,13 +402,13 @@ const DocumentDetailPage = () => {
                       
                       <div className="space-y-1.5 max-h-44 overflow-y-auto border border-gray-200 rounded-xl p-3 mb-3 bg-gray-50 shadow-inner">
                         {departments
-                          .filter(d => d.name !== doc.current_location_dept && d.name !== 'System Administrator')
+                          .filter(d => d.name !== user?.department && d.name !== 'System Administrator')
                           .map(d => (
                             <label key={d.id} className="flex items-center gap-2.5 text-sm cursor-pointer hover:bg-white px-2 py-1.5 rounded-lg border border-transparent hover:border-gray-200 transition-colors">
                               <input type="checkbox"
-                                checked={selectedDepts.includes(d.name)}
-                                onChange={() => toggleDept(d.name)}
-                                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                  checked={selectedDepts.includes(d.name)}
+                                  onChange={() => toggleDept(d.name)}
+                                  className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                               <span className="text-gray-700 font-medium">{d.name}</span>
                             </label>
                           ))}
@@ -476,7 +488,6 @@ const DocumentDetailPage = () => {
               </div>
             )}
 
-            {/* Completed Static State */}
             {doc.status === 'Completed' && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center shadow-sm">
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-emerald-100 mx-auto mb-3 shadow-sm">
@@ -491,7 +502,6 @@ const DocumentDetailPage = () => {
           {/* ── RIGHT COLUMN ── */}
           <div className="lg:col-span-2 space-y-6">
             
-            {/* Audit Trail Row Timeline Container */}
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl shadow-gray-200/50">
               <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
@@ -516,14 +526,12 @@ const DocumentDetailPage = () => {
                   </div>
                 ) : (
                   <div className="relative pl-3 space-y-0">
-                    {/* Vertical Timeline Guide */}
                     <div className="absolute left-4 top-2 bottom-4 w-px bg-gray-200" />
 
                     {history.map((event, i) => {
                       const isLast = i === history.length - 1;
                       return (
                         <div key={event.id ?? i} className="relative flex gap-5 group">
-                          {/* Timeline Dot Indicator */}
                           <div className="flex flex-col items-center flex-shrink-0 relative z-10 pt-1.5">
                             <div className={`w-2.5 h-2.5 rounded-full ring-4 ring-white shadow-sm border ${actionDotColor(event.action_taken ?? event.status)}`} />
                           </div>
@@ -573,7 +581,6 @@ const DocumentDetailPage = () => {
               </div>
             </div>
 
-            {/* File Binary Attachments Component Wrapper */}
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl shadow-gray-200/50">
               <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
                 <Paperclip className="w-4 h-4 text-gray-500" />
@@ -583,7 +590,6 @@ const DocumentDetailPage = () => {
 
               <div className="p-6 space-y-6">
                 
-                {/* Upload Zone */}
                 <div className="border-2 border-dashed border-gray-200 hover:border-indigo-400 rounded-2xl p-5 transition-colors duration-200 group bg-gray-50/50">
                   <div className="text-center mb-4">
                     <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center mx-auto mb-2.5 shadow-sm transition-transform group-hover:scale-105">
@@ -612,7 +618,6 @@ const DocumentDetailPage = () => {
                   )}
                 </div>
 
-                {/* Grid Lists */}
                 {attachments.length === 0 ? (
                   <div className="text-center py-2">
                     <p className="text-gray-400 text-sm font-medium">No file fragments mapped to trace element container.</p>
