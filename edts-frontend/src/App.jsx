@@ -5,7 +5,7 @@ import ProtectedRoute      from './components/ProtectedRoute';
 import LoginPage           from './pages/LoginPage';
 import RegisterPage        from './pages/RegisterPage';
 import DashboardPage       from './pages/DashboardPage';
-import DocumentsPage       from './pages/DocumentsPage';
+import DocumentsPage       from "./pages/DocumentsPage";
 import CreateDocumentPage  from './pages/CreateDocumentPage';
 import DocumentDetailPage  from './pages/DocumentDetailPage';
 import AdminPage           from './pages/AdminPage';
